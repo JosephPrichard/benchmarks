@@ -2,131 +2,105 @@ package src;
 
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Scanner;
 
-import static src.PuzzleState.BOARD_SIZE;
-
+/**
+ *
+ * @author Joseph Prichard
+ */
 public class Main
 {
+    /**
+     * Parses a file and reads it into an initial puzzle state
+     *
+     * @param file to be parsed into the puzzle state
+     * @return the puzzle state
+     * @throws FileNotFoundException if the file doesn't exist
+     */
+    public static PuzzleState readPuzzle(File file) throws FileNotFoundException {
+        ArrayList<ArrayList<Integer>> puzzleMatrix = new ArrayList<>();
 
-    public static int parsePuzzleTile(String value) {
-        try {
-            int numValue = Integer.parseInt(value);
-
-            if (numValue < 0 || numValue > 9) {
-                System.out.printf("%d must be between 0 and 8\n", numValue);
-                System.exit(1);
-            }
-
-            return numValue;
-        } catch(NumberFormatException e) {
-            System.out.printf("%s must be an integer\n", value);
-            System.exit(1);
-            return -1;
-        }
-    }
-
-    public static int[][] readPuzzle(File file) throws FileNotFoundException {
-        int[][] puzzle = new int[BOARD_SIZE][BOARD_SIZE];
-
-        int i = 0;
+        // scan through file line by line
         Scanner fileReader = new Scanner(file);
         while (fileReader.hasNext()) {
-            if (i >= BOARD_SIZE) {
-                System.out.printf("Puzzle must be %d x %d\n", BOARD_SIZE, BOARD_SIZE);
-                System.exit(1);
-            }
+            // split each line into tokens, parse each token into a matrix value
             String line = fileReader.nextLine();
-            String[] columns = line.split(" ");
-            int j = 0;
-            for (String column : columns) {
-                if (j >= BOARD_SIZE) {
-                    System.out.printf("Puzzle must be %d x %d\n", BOARD_SIZE, BOARD_SIZE);
-                    System.exit(1);
-                }
-                if (!column.equals("")) {
-                    puzzle[i][j] = parsePuzzleTile(column);
-                    j++;
+            String[] tokens = line.split(" ");
+
+            ArrayList<Integer> puzzleRow = new ArrayList<>();
+
+            for (String token : tokens) {
+                if (!token.equals("")) {
+                    puzzleRow.add(Integer.parseInt(token));
                 }
             }
-            if (j < BOARD_SIZE) {
-                System.out.printf("Puzzle must be %d x %d\n", BOARD_SIZE, BOARD_SIZE);
-                System.exit(1);
-            }
-            i++;
+
+            puzzleMatrix.add(puzzleRow);
         }
-        if (i < BOARD_SIZE) {
-            System.out.printf("Puzzle must be %d x %d\n", BOARD_SIZE, BOARD_SIZE);
+
+        // copy the list to a fixed size matrix
+        int[][] puzzle = new int[puzzleMatrix.size()][];
+        for (int i = 0; i < puzzleMatrix.size(); i++) {
+            puzzle[i] = puzzleMatrix.get(i).stream().mapToInt(num -> num).toArray();
+        }
+
+        // verify the the matrix is a square
+        if (Utils.checkSquare(puzzle, 3) == -1) {
+            System.out.println("Matrices must be square");
             System.exit(1);
         }
 
-        return puzzle;
+        return new PuzzleState(puzzle);
     }
 
     /**
      * Shell to allow for communication with puzzle solver algorithm
      *
-     * @param args [initialStateFilePath] [goalStateFilePath] -o [outputFilePath]
-     *             Output file is optional, if not specified program will output to console
+     * @param args [inputFilePath](optional)
      */
     public static void main(String[] args) throws FileNotFoundException {
-        if (args.length < 2) {
-            System.out.println("Proper usage: <initialStateFilePath> <goalStateFilePath> -o <outputFilePath>");
-            System.exit(1);
-        }
-
-        File initialFile = new File(args[0]);
-        File goalFile = new File(args[1]);
-
-        if (!initialFile.exists()) {
-            System.out.printf("%s isn't a file\n", initialFile.getName());
-            System.exit(1);
-        }
-        if (!goalFile.exists()) {
-            System.out.printf("%s isn't a file", goalFile.getName());
-            System.exit(1);
-        }
-
-        PrintStream printStream = System.out;
-        if (args.length >= 4) {
-            File outputFile = new File(args[3]);
-            if (!outputFile.exists()) {
-                System.out.printf("%s doesn't exist\n", outputFile.getName());
+        File puzzleFile = null;
+        if (args.length == 1) {
+            puzzleFile = new File(args[0]);
+            if (!puzzleFile.exists()) {
+                System.out.println("Input file doesn't exist");
                 System.exit(1);
             }
-            printStream = new PrintStream(outputFile);
         }
 
-        int[][] initial = readPuzzle(initialFile);
-        int[][] goal = readPuzzle(goalFile);
+        PuzzleSolver solver;
+        PuzzleState initialState;
 
-        boolean isValidProblem = PuzzleState.isSolvable(initial, goal)
-            && PuzzleState.properZeros(initial)
-            && PuzzleState.properZeros(goal);
+        if (puzzleFile != null) {
+            initialState = readPuzzle(puzzleFile);
+            solver = new PuzzleSolver(initialState.getBoardSize());
+        } else {
+            solver = new PuzzleSolver(4);
+            initialState = solver.generateRandomSolvable();
+        }
+
+        if (!solver.isSolvable(initialState)) {
+            System.out.println("Not Solvable");
+        }
 
         System.out.println("Starting...");
 
-        if(isValidProblem) {
-            final long startTime = System.currentTimeMillis();
+        final long startTime = System.currentTimeMillis();
 
-            PuzzleSolver solver = new PuzzleSolver();
-            ArrayList<PuzzleState> solution = solver.findSolution(initial, goal);
+        ArrayList<PuzzleState> solution = solver.findSolution(initialState);
 
-            final long endTime = System.currentTimeMillis();
+        final long endTime = System.currentTimeMillis();
 
-            for (PuzzleState state : solution) {
-                printStream.println(state.getAction());
-                state.printPuzzle(printStream);
-            }
-            int size = solution.size() - 1;
-
-            printStream.printf("Solved in %d steps\n", size);
-            printStream.printf("Total execution time: %d ms\n", endTime - startTime);
-        } else {
-            System.out.println("Not Solvable");
+        for (PuzzleState state : solution) {
+            System.out.println(state.getAction());
+            state.printPuzzle();
         }
+        int size = solution.size() - 1;
+
+        System.out.printf("Solved in %d steps\n", size);
+        System.out.printf("Total execution time: %d ms\n", endTime - startTime);
+
         System.out.println("Finished!");
     }
 }

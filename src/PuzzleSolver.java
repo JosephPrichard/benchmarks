@@ -4,40 +4,79 @@
  */
 package src;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.PriorityQueue;
+import java.util.*;
 
 /**
  *
- * @author Joseph
+ * @author Joseph Prichard
  */
 public class PuzzleSolver
 {
+    private final PuzzleState goalState;
+    private final int boardSize;
+
+    public PuzzleState getGoalState() {
+        return goalState;
+    }
+
+    public int getBoardSize() {
+        return boardSize;
+    }
+
+    public PuzzleSolver(int boardSize) {
+        this.boardSize = boardSize;
+
+        // creates the goal state for the specified board size
+        int num = 1;
+        int[][] goalPuzzle = new int[boardSize][];
+        for (int i = 0; i < boardSize; i++) {
+            goalPuzzle[i] = new int[boardSize];
+            for (int j = 0; j < boardSize; j++) {
+                goalPuzzle[i][j] = num;
+                num++;
+            }
+        }
+        goalPuzzle[boardSize - 1][boardSize - 1] = 0;
+
+        this.goalState = new PuzzleState(goalPuzzle);
+    }
+
     /**
-     * Wrapper function for calling the AStar algorithm with raw arrays
-     * @param initial, the initial puzzle
-     * @param goal, the goal puzzle
-     * @return the solution as a list of PuzzleNodes
+     * Calculates the heuristic for the AStar algorithm
+     *
+     * @param puzzleState, to calculate heuristic for relative to goal
+     * @return the heuristic h value
      */
-    public ArrayList<PuzzleState> findSolution(int[][] initial, int[][] goal) {
-        return findSolution(new PuzzleState(initial), new PuzzleState(goal));
+    public int heuristic(PuzzleState puzzleState) {
+        int[][] puzzle = puzzleState.getPuzzle();
+        int h = 0;
+        // compute the heuristic against the goal state (we calculate the goal values rather than read since it is faster)
+        for (int i = 0; i < boardSize; i++) {
+            for (int j = 0; j < boardSize; j++) {
+                if (puzzle[i][j] != 0) {
+                    h += manhattanDistance(i, j, puzzle[i][j] / boardSize, puzzle[i][j] % boardSize);
+                }
+            }
+        }
+        return h;
+    }
+
+    public static int manhattanDistance(int row, int col1, int row2, int col2) {
+        return Math.abs(row2 - row) + Math.abs(col2 - col1);
     }
 
     /**
      * Implementation of AStar algorithm to solve puzzle
      * @param initialState, the initial puzzle
-     * @param goalState, the goal puzzle
      * @return the solution as a list of PuzzleNodes
      */
-    private ArrayList<PuzzleState> findSolution(PuzzleState initialState, PuzzleState goalState) {
+    public ArrayList<PuzzleState> findSolution(PuzzleState initialState) {
         // creates the closed set to stores nodes we've already expanded
-        HashSet<PuzzleState> closedSet = new HashSet<>(1000);
+        HashSet<PuzzleState> closedSet = new HashSet<>(100);
         closedSet.add(initialState);
 
         // creates the open set to choose the closest state to the solution at each iteration
-        PriorityQueue<PuzzleState> openSet = new PriorityQueue<>(1000, new FScoreComparator());
+        PriorityQueue<PuzzleState> openSet = new PriorityQueue<>(100, Comparator.comparingInt(PuzzleState::getFScore));
         openSet.add(initialState);
 
         // iterate until we find a solution or are out of puzzle states
@@ -52,12 +91,12 @@ public class PuzzleSolver
             }
 
             // expand our search by getting the neighbor states for the current state
-            ArrayList<PuzzleState> neighborStates = calculateNeighborStates(currentState);
+            ArrayList<PuzzleState> neighborStates = neighborStates(currentState);
 
             // for each neighbor, if it isn't already visited update the FScore for ranking and add it to the open set
             for (PuzzleState neighborState : neighborStates) {
                 if (!closedSet.contains(neighborState)) {
-                    neighborState.updateFScore(goalState.getPuzzle());
+                    neighborState.setFScore(heuristic(neighborState));
                     openSet.add(neighborState);
                 }
             }
@@ -70,7 +109,7 @@ public class PuzzleSolver
      * @param current, the current state
      * @return a list of states
      */
-    public ArrayList<PuzzleState> calculateNeighborStates(PuzzleState current) {
+    public ArrayList<PuzzleState> neighborStates(PuzzleState current) {
         ArrayList<PuzzleState> neighborStates = new ArrayList<>();
         PuzzleState upPuzzle = current.shiftUp();
         if (upPuzzle != null) {
@@ -100,7 +139,7 @@ public class PuzzleSolver
      * @param bottomLeaf, the leaf to climb up from
      * @return the shortest path
      */
-    private ArrayList<PuzzleState> reconstructPath(PuzzleState bottomLeaf) {
+    public ArrayList<PuzzleState> reconstructPath(PuzzleState bottomLeaf) {
         boolean atRoot = false;
         PuzzleState current = bottomLeaf;
         ArrayList<PuzzleState> list = new ArrayList<>();
@@ -116,5 +155,81 @@ public class PuzzleSolver
         // reverse the list since we traversed from goal state to initial
         Collections.reverse(list);
         return list;
+    }
+
+    /**
+     * Generates a puzzle state guaranteed to be solvable
+     *
+     * @return solvable puzzle state
+     */
+    public PuzzleState generateRandomSolvable() {
+        int moves = Utils.rand(15,20);
+
+        PuzzleState currentState = goalState;
+        for (int i = 0; i < moves; i++) {
+            ArrayList<PuzzleState> neighborStates = neighborStates(currentState);
+            int move = Utils.rand(0, neighborStates.size() - 1);
+            currentState = neighborStates.get(move);
+        }
+
+        currentState.unlink();
+
+        return currentState;
+    }
+
+    /**
+     * Checks if a puzzle is solvable to goal state
+     *
+     * @param puzzleState to check if it is solvable
+     * @return true or false
+     */
+    public boolean isSolvable(PuzzleState puzzleState) {
+        int invCount = countInversions(puzzleState);
+        if(puzzleState.getBoardSize() % 2 == 0) {
+            // even board size
+            int zeroStart = puzzleState.find0Position();
+            return (zeroStart + invCount) % 2 != 0;
+        }
+        else {
+            // odd board size
+            return invCount % 2 == 0;
+        }
+    }
+
+    /**
+     * Calculates the number of inversions between a puzzle and the goal puzzle
+     *
+     * @param puzzleState, the initial state to count inversions for
+     * @return the number of inversions
+     */
+    public int countInversions(PuzzleState puzzleState) {
+        int[] puzzle = new int[boardSize * boardSize];
+
+        // copy the 2D puzzle arrays to a laid out 1D array
+        int counter = 0;
+        for (int i = 0; i < boardSize; i++) {
+            for (int j = 0; j < boardSize; j++) {
+                puzzle[counter] = puzzleState.getPuzzle()[i][j];
+                counter++;
+            }
+        }
+        // counts the number of inversions in the puzzle
+        // an inversion is any pair i and j where i < j but i appears after j on the solved state
+        int inversions = 0;
+        for (int i = 0; i < puzzle.length; i++) {
+            if (puzzle[i] == 0) {
+                continue;
+            }
+            for (int j = i + 1; j < puzzle.length; j++) {
+                if (puzzle[j] == 0) {
+                    continue;
+                }
+                if (puzzle[i] > puzzle[j]) {
+                    inversions++;
+                }
+            }
+        }
+
+        return inversions;
     }
 }
