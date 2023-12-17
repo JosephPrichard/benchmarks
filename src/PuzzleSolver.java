@@ -27,7 +27,7 @@ public class PuzzleSolver
         this.boardSize = boardSize;
 
         // creates the goal state for the specified board size
-        int num = 1;
+        int num = 0;
         int[][] goalPuzzle = new int[boardSize][];
         for (int i = 0; i < boardSize; i++) {
             goalPuzzle[i] = new int[boardSize];
@@ -36,7 +36,6 @@ public class PuzzleSolver
                 num++;
             }
         }
-        goalPuzzle[boardSize - 1][boardSize - 1] = 0;
 
         this.goalState = new PuzzleState(goalPuzzle);
     }
@@ -49,12 +48,16 @@ public class PuzzleSolver
      */
     public int heuristic(PuzzleState puzzleState) {
         int[][] puzzle = puzzleState.getPuzzle();
+        int[][] goalPuzzle = goalState.getPuzzle();
         int h = 0;
-        // compute the heuristic against the goal state (we calculate the goal values rather than read since it is faster)
         for (int i = 0; i < boardSize; i++) {
             for (int j = 0; j < boardSize; j++) {
-                if (puzzle[i][j] != 0) {
-                    h += manhattanDistance(i, j, puzzle[i][j] / boardSize, puzzle[i][j] % boardSize);
+                for (int k = 0; k < boardSize; k++) {
+                    for (int l = 0; l < boardSize; l++) {
+                        if (goalPuzzle[k][l] == puzzle[i][j] && goalPuzzle[k][l] != 0) {
+                            h += manhattanDistance(i, j, k, l);
+                        }
+                    }
                 }
             }
         }

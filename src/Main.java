@@ -31,7 +31,7 @@ public class Main
             ArrayList<Integer> puzzleRow = new ArrayList<>();
 
             for (String token : tokens) {
-                if (!token.equals("")) {
+                if (!token.isEmpty()) {
                     puzzleRow.add(Integer.parseInt(token));
                 }
             }
@@ -45,7 +45,7 @@ public class Main
             puzzle[i] = puzzleMatrix.get(i).stream().mapToInt(num -> num).toArray();
         }
 
-        // verify the the matrix is a square
+        // verify the matrix is a square
         if (Utils.checkSquare(puzzle, 3) == -1) {
             System.out.println("Matrices must be square");
             System.exit(1);
