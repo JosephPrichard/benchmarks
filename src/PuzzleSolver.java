@@ -23,11 +23,16 @@ public class PuzzleSolver
         return boardSize;
     }
 
+    public PuzzleSolver(int boardSize, PuzzleState goalState) {
+        this.boardSize = boardSize;
+        this.goalState = goalState;
+    }
+
     public PuzzleSolver(int boardSize) {
         this.boardSize = boardSize;
 
         // creates the goal state for the specified board size
-        int num = 0;
+        int num = 1;
         int[][] goalPuzzle = new int[boardSize][];
         for (int i = 0; i < boardSize; i++) {
             goalPuzzle[i] = new int[boardSize];
@@ -36,6 +41,7 @@ public class PuzzleSolver
                 num++;
             }
         }
+        goalPuzzle[boardSize - 1][boardSize - 1] = 0;
 
         this.goalState = new PuzzleState(goalPuzzle);
     }
@@ -182,6 +188,7 @@ public class PuzzleSolver
 
     /**
      * Checks if a puzzle is solvable to goal state
+     * THIS ONLY WORKS AGAINST THE DEFAULT GOAL STATE
      *
      * @param puzzleState to check if it is solvable
      * @return true or false

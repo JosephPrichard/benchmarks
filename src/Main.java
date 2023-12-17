@@ -60,11 +60,19 @@ public class Main
      * @param args [inputFilePath](optional)
      */
     public static void main(String[] args) throws FileNotFoundException {
-        File puzzleFile = null;
-        if (args.length == 1) {
-            puzzleFile = new File(args[0]);
-            if (!puzzleFile.exists()) {
-                System.out.println("Input file doesn't exist");
+        File initialFile = null;
+        File goalFile = null;
+        if (args.length >= 1) {
+            initialFile = new File(args[0]);
+            if (!initialFile.exists()) {
+                System.out.println("Input initial state file doesn't exist");
+                System.exit(1);
+            }
+        }
+        if (args.length >= 2) {
+            goalFile = new File(args[1]);
+            if (!goalFile.exists()) {
+                System.out.println("Input goal state file doesn't exist");
                 System.exit(1);
             }
         }
@@ -72,17 +80,23 @@ public class Main
         PuzzleSolver solver;
         PuzzleState initialState;
 
-        if (puzzleFile != null) {
-            initialState = readPuzzle(puzzleFile);
-            solver = new PuzzleSolver(initialState.getBoardSize());
+        if (initialFile != null) {
+            initialState = readPuzzle(initialFile);
+            if (goalFile != null) {
+                PuzzleState goalState = readPuzzle(goalFile);
+                solver = new PuzzleSolver(initialState.getBoardSize(), goalState);
+            } else {
+                solver = new PuzzleSolver(initialState.getBoardSize());
+            }
         } else {
             solver = new PuzzleSolver(4);
             initialState = solver.generateRandomSolvable();
         }
 
-        if (!solver.isSolvable(initialState)) {
-            System.out.println("Not Solvable");
-        }
+        System.out.println("Initial State");
+        initialState.printPuzzle();
+        System.out.println("Goal State");
+        solver.getGoalState().printPuzzle();
 
         System.out.println("Starting...");
 
@@ -91,6 +105,11 @@ public class Main
         ArrayList<PuzzleState> solution = solver.findSolution(initialState);
 
         final long endTime = System.currentTimeMillis();
+
+        if (solution == null) {
+            System.out.println("Failed to find a solution - puzzle is unsolvable");
+            System.exit(1);
+        }
 
         for (PuzzleState state : solution) {
             System.out.println(state.getAction());
