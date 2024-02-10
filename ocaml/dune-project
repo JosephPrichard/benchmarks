@@ -1,0 +1,15 @@
+(lang dune 3.8)
+
+(name puzzleml)
+
+(generate_opam_files true)
+
+(source
+ (github JosephPrichard/Puzzle.ml))
+
+(authors "Joseph Prichard")
+
+(package
+ (name puzzleml)
+ (synopsis "Functionally pure implementation of an 8puzzle solver")
+ (depends ocaml dune psq))

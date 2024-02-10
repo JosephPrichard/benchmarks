@@ -1,17 +1,9 @@
-# NPuzzle
+# SlidingPuzzle
 
-Java AI to solve the [sliding puzzle problem](https://en.wikipedia.org/wiki/15_puzzle) using the AStar algorithm. This AI is guaranteed to find the shortest number of steps to solve any solvable NPuzzle. 
+A collection of implementations solve the [sliding puzzle problem](https://en.wikipedia.org/wiki/15_puzzle) using the AStar algorithm in a variety of languages. The program is guaranteed to find the shortest number of steps to solve any solvable NPuzzle. 
 
-This AI is capable of solving sliding puzzles of various sizes: 8puzzles, 15puzzles, NPuzzles, etc. However since this problem is considered NP-hard it can take a very long time to solve anything larger than a 15puzzle! As such, I reccomend you to stick to 8puzzles and 15puzzles unless you're going to run this AI in the background.
+Currently includes implementations for Java, C, and OCaml. Many more to come - implementing a sliding puzzle solver has become my primary way to learn a new language.
 
-## Usage
+## Benchmarks
 
-To use this program, execute the jar file with the first argument the input file containing the sliding puzzle to be solved. 
-
-You can leave the first argument out to let my program generate a random solvable sliding puzzle it will solve.
-
-Examples for input and output files are contained in the root directory.
-
-## About
-
-I wrote this program originally for my highschool CS class in 2020. Since then I've graduated but I continue to make small changes and optimizations from time to time. Feel free to use this code as long as you give me credit.
+Currently working on some benchmarks to measure whether which implementation is the fastest. The C version needs some fixes to support solving 15puzzles. The benchmarks will be performed with a large 8puzzle 100 times in a row and a large 15puzzle 1 time. The former will test which implementation has the lowest overhead and the latter which scales the best into larger puzzles.

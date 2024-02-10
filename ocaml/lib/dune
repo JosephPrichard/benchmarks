@@ -1,0 +1,4 @@
+(library
+ (name puzzle)
+ (modules puzzle)
+ (libraries str psq))
