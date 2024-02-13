@@ -7,7 +7,8 @@ defmodule Npuzzle.MixProject do
       version: "0.1.0",
       elixir: "~> 1.16",
       start_permanent: Mix.env() == :prod,
-      deps: deps()
+      deps: deps(),
+      escript: escript()
     ]
   end
 
@@ -23,5 +24,9 @@ defmodule Npuzzle.MixProject do
     [
       {:erlang_psq, "~> 1.0"}
     ]
+  end
+
+  defp escript do
+    [main_module: NPuzzle.CLI]
   end
 end

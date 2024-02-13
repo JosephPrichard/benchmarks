@@ -1,4 +1,4 @@
-defmodule Puzzle do
+defmodule State do
   defstruct action: "",
             g: 0,
             f: 0,
@@ -8,7 +8,7 @@ defmodule Puzzle do
 end
 
 defmodule PuzzleSolver do
-  @type puzzle :: %Puzzle{}
+  @type state :: %State{}
   @type position :: {integer(), integer()}
   @type tiles :: list(integer())
 
@@ -23,6 +23,43 @@ defmodule PuzzleSolver do
   @spec add_pos(position(), position()) :: position()
   def add_pos({row1, col1}, {row2, col2}), do: {row1 + row2, col1 + col2}
 
+  @spec string_to_tiles(String.t()) :: {tiles(), integer()}
+  def string_to_tiles(string) do
+    tiles =
+      string
+      |> String.split("\n")
+      |> Enum.map(&String.split(&1, " "))
+      |> List.flatten()
+      |> Enum.map(&String.to_integer(&1))
+
+    n =
+      length(tiles)
+      |> :math.sqrt()
+      |> floor()
+
+    {tiles, n}
+  end
+
+  @spec tiles_to_string(tiles(), integer()) :: String.t()
+  def tiles_to_string(tiles, n) do
+    f = fn x, {str, i} ->
+      x = Integer.to_string(x)
+
+      if rem(i + 1, n) == 0 do
+        {str <> x <> "\n", i + 1}
+      else
+        {str <> x <> " ", i + 1}
+      end
+    end
+
+    tiles
+    |> Enum.reduce({"", 0}, f)
+    |> elem(0)
+  end
+
+  @spec state_to_string(state()) :: String.t()
+  def state_to_string(state), do: state.action <> "\n" <> tiles_to_string(state.tiles, state.n)
+
   @spec find_zero(tiles(), integer()) :: position()
   def find_zero(tiles, n) do
     Enum.find_index(tiles, &(&1 == 0))
@@ -35,38 +72,37 @@ defmodule PuzzleSolver do
     index2 = pos_to_index(pos2, n)
 
     tiles
-    |> List.update_at(index1, fn _ -> Enum.at(tiles, index2) end)
-    |> List.update_at(index2, fn _ -> Enum.at(tiles, index1) end)
+    |> List.replace_at(index1, Enum.at(tiles, index2))
+    |> List.replace_at(index2, Enum.at(tiles, index1))
   end
 
-  @spec neighbor(puzzle(), {position(), any()}, position()) :: puzzle()
-  def neighbor(puzzle, direction, target_pos) do
+  @spec neighbor(state(), {position(), any()}, position()) :: state()
+  def neighbor(state, direction, target_pos) do
     {dpos, action} = direction
 
-    tiles = swap_tiles(puzzle.tiles, puzzle.n, target_pos, add_pos(target_pos, dpos))
+    tiles = swap_tiles(state.tiles, state.n, target_pos, add_pos(target_pos, dpos))
 
-    %Puzzle{
+    %State{
       action: action,
-      g: puzzle.g + 1,
-      f: puzzle.g + 1 + heuristic(tiles, puzzle.n),
-      n: puzzle.n,
+      g: state.g + 1,
+      f: state.g + 1 + heuristic(tiles, state.n),
+      n: state.n,
       tiles: tiles,
-      prev: puzzle
+      prev: state
     }
   end
 
-  @spec neighbors(puzzle()) :: list(puzzle())
-  def neighbors(puzzle) do
-    zero_pos = find_zero(puzzle.tiles, puzzle.n)
+  @spec neighbors(state()) :: list(state())
+  def neighbors(state) do
+    zero_pos = find_zero(state.tiles, state.n)
 
     @directions
-    |> Enum.map(&neighbor(puzzle, &1, zero_pos))
+    |> Enum.map(&neighbor(state, &1, zero_pos))
   end
 
   @spec heuristic(tiles(), integer()) :: number()
   def heuristic(tiles, n) do
-    f = fn x, acc ->
-      {h, i} = acc
+    f = fn x, {h, i} ->
       {row1, col1} = index_to_pos(i, n)
       {row2, col2} = index_to_pos(x, n)
       {h + abs(row2 - row1) + abs(col2 - col1), i + 1}
@@ -77,51 +113,66 @@ defmodule PuzzleSolver do
     |> elem(0)
   end
 
-  def add_neighbor(puzzle, frontier), do: :psq.insert(0, puzzle.f, puzzle, frontier)
+  @spec add_neighbor(state(), :psq.psq()) :: :psq.psq()
+  def add_neighbor(state, frontier) do
+    tiles_to_key(state.tiles)
+    |> :psq.insert(state.f, state, frontier)
+  end
 
-  def is_visited(puzzle, visited) do
-    key = tiles_to_key(puzzle.tiles)
+  @spec is_visited(state(), map()) :: boolean()
+  def is_visited(state, visited) do
+    key = tiles_to_key(state.tiles)
     Map.has_key?(visited, key)
+  end
+
+  @spec add_neighbors(:psq.psq(), map(), state()) :: :psq.psq()
+  def add_neighbors(frontier, visited, state) do
+    neighbors(state)
+    |> Enum.filter(&(not is_visited(&1, visited)))
+    |> Enum.reduce(frontier, &add_neighbor/2)
   end
 
   @spec tiles_to_key(tiles()) :: integer()
   def tiles_to_key(tiles) do
-    Enum.reduce(tiles, {0, 0}, fn x, acc ->
-      {i, key} = acc
-      {i + 1, key + 10 ** i * x}
-    end)
+    f = fn x, {i, key} -> {i + 1, key + 10 ** i * x} end
+
+    Enum.reduce(tiles, {0, 0}, f)
     |> elem(1)
   end
 
-  def reconstruct_path(nil), do: []
+  @spec reconstruct_path(state()) :: list(state())
+  def reconstruct_path(state), do: reconstruct_path(state, [])
 
-  def reconstruct_path(puzzle), do: [puzzle | reconstruct_path(puzzle.prev)]
+  @spec reconstruct_path(state(), list(state())) :: list(state())
+  def reconstruct_path(nil, acc), do: acc
 
-  @spec search({tiles(), integer()}) :: list(puzzle())
-  def search({tiles, n}) do
-    puzzle = %Puzzle{tiles: tiles, n: n}
+  def reconstruct_path(state, acc), do: reconstruct_path(state.prev, [state | acc])
+
+  @spec search(tiles(), integer()) :: list(state())
+  def search(tiles, n) do
+    state = %State{tiles: tiles, n: n}
     visited = %{}
-    frontier = :psq.insert(0, puzzle.f, puzzle, :psq.new())
-    search(visited, frontier, [0, 1, 2, 3, 4, 5, 7, 8])
+    frontier = :psq.insert(0, state.f, state, :psq.new())
+    search(frontier, visited, [0, 1, 2, 3, 4, 5, 6, 7, 8])
   end
 
-  def search(visited, frontier, goal) do
+  @spec search(:psq.psq(), map(), tiles()) :: list(state())
+  def search(frontier, visited, goal) do
     case :psq.find_min(frontier) do
       :nothing ->
         []
 
-      {:just, {_, _, puzzle}} ->
-        if puzzle.tiles == goal do
-          reconstruct_path(puzzle)
+      {:just, {_, _, state}} ->
+        IO.puts("Curr state\n" <> tiles_to_string(state.tiles, state.n))
+
+        if state.tiles == goal do
+          reconstruct_path(state)
         else
-          new_visited = Map.put(visited, tiles_to_key(puzzle.tiles), true)
+          new_visited = Map.put(visited, tiles_to_key(state.tiles), true)
 
-          new_frontier =
-            neighbors(puzzle)
-            |> Enum.filter(&is_visited(&1, new_visited))
-            |> Enum.reduce(frontier, &add_neighbor/2)
-
-          search(new_visited, new_frontier, goal)
+          :psq.delete_min(frontier)
+          |> add_neighbors(new_visited, state)
+          |> search(new_visited, goal)
         end
     end
   end
