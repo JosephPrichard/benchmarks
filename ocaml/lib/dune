@@ -1,4 +1,4 @@
 (library
- (name puzzle)
- (modules puzzle)
+ (name puzzle_solver)
+ (modules puzzle solver)
  (libraries str psq))

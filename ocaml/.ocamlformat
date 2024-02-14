@@ -1,0 +1,17 @@
+profile = default
+version = 0.25.1
+type-decl = sparse
+cases-exp-indent = 2
+let-binding-spacing = compact
+if-then-else = fit-or-vertical
+parens-tuple = always
+parens-ite = false
+break-separators = before
+leading-nested-match-parens = true
+single-case = sparse
+wrap-fun-args = false
+break-cases = fit-or-vertical
+if-then-else = fit-or-vertical
+dock-collection-brackets = false
+function-indent = 2
+max-indent = 2

@@ -41,6 +41,12 @@ typedef struct puzzle_sol {
     move_t move;
 } puzzle_sol_t;
 
+typedef struct run_t {
+    puzzle_sol_t solution[LONGEST_SOL];
+    int steps;
+    int time;
+} run_t;
+
 typedef struct priority_q_t {
     puzzle_t** min_heap;
     int size;
@@ -60,14 +66,14 @@ typedef struct list_t {
 } vector_t;
 
 typedef struct arena_t {
-    struct arena_t* next;
+    struct arena_t* prev;
     char mem[ARENA_SIZE];
     int offset;
 } arena_t;
 
 arena_t* new_arena();
 
-void* arena_alloc(arena_t*, int, int);
+void* arena_alloc(arena_t**, int);
 
 void free_arena(arena_t*);
 
@@ -101,7 +107,7 @@ void push_pq(priority_q_t*, puzzle_t*);
 
 puzzle_t* pop_pq(priority_q_t*);
 
-puzzle_t* new_puzzle(arena_t*, const board_t);
+puzzle_t* new_puzzle(arena_t**, const board_t);
 
 int find_zero(const board_t);
 
@@ -135,33 +141,36 @@ arena_t* new_arena() {
         exit(1);
     }
     memset(a->mem, 0, ARENA_SIZE);
-    a->next = NULL;
+    a->prev = NULL;
     a->offset = 0;
     return a;
 }
 
-void* arena_alloc(arena_t* a, int size, int is_first) {
-    int next_offset = a->offset + size;
+void* arena_alloc_rec(arena_t* curr, arena_t** root, int size, int is_first) {
+    int next_offset = curr->offset + size;
     if (next_offset >= ARENA_SIZE) {
         if (!is_first) {
             return NULL;
         }
         arena_t* next_a = new_arena();
-        a->next = next_a;
-        return arena_alloc(next_a, size, 0);
+        next_a->prev = curr;
+        *root = next_a;
+        return arena_alloc_rec(next_a, root, size, 0);
     } else {
-        int last_offset = a->offset;
-        a->offset += size;
-        return a->mem + last_offset;
+        int last_offset = curr->offset;
+        curr->offset += size;
+        return curr->mem + last_offset;
     }
 }
 
+void* arena_alloc(arena_t** a, int size) {
+    return arena_alloc_rec(*a, a, size, 1);
+}
+
 void free_arena(arena_t* a) {
-    arena_t* curr = a;
-    while (curr != NULL) {
-        arena_t* next = curr->next;
-        free(curr);
-        curr = next;
+    if (a != NULL) {
+        free_arena(a->prev);
+        free(a);
     }
 }
 
@@ -408,8 +417,8 @@ puzzle_t* pop_pq(priority_q_t* pq) {
 
 // PUZZLE SOLVER IMPLEMENTATION
 
-puzzle_t* new_puzzle(arena_t* arena, const board_t brd) {
-    puzzle_t* puz = arena_alloc(arena, sizeof(puzzle_t), 1);
+puzzle_t* new_puzzle(arena_t** arena, const board_t brd) {
+    puzzle_t* puz = arena_alloc(arena, sizeof(puzzle_t));
     if (puz == NULL) {
         printf("Failed to allocate puzzle_t on arena");
         exit(1);
@@ -471,7 +480,7 @@ int solve(const board_t initial_brd, puzzle_sol_t solution[LONGEST_SOL], int bou
 
     arena_t* arena = new_arena();
 
-    puzzle_t* root = new_puzzle(arena, initial_brd);
+    puzzle_t* root = new_puzzle(&arena, initial_brd);
     priority_q_t* open_set = new_pq();
     hash_table_t* closed_set = new_ht();
 
@@ -503,7 +512,7 @@ int solve(const board_t initial_brd, puzzle_sol_t solution[LONGEST_SOL], int bou
             int not_visited = !ht_has_key(closed_set, hash_board(neighbor_board));
             if (not_visited) {
                 // create a new neighbor with the new board_t and calculated states
-                puzzle_t* neighbor_puz = new_puzzle(arena, neighbor_board);
+                puzzle_t* neighbor_puz = new_puzzle(&arena, neighbor_board);
                 neighbor_puz->parent = current_puz;
                 neighbor_puz->g = current_puz->g + 1;
                 neighbor_puz->f = neighbor_puz->g + heuristic(neighbor_board);
@@ -556,7 +565,6 @@ void print_board(const board_t brd) {
             printf("\n");
         }
     }
-    printf("\n");
 }
 
 void print_solution(puzzle_sol_t solution[LONGEST_SOL], int count) {
@@ -621,23 +629,26 @@ int main(int argc, char** argv) {
     int count = parse_boards(initial_boards, input_file);
     fclose(input_file);
 
-    printf("Running for %d puzzle_t input(s)...\n", count);
+    printf("Running for %d puzzle input(s)...\n", count);
 
-    clock_t tic = clock();
-
-    puzzle_sol_t solutions[MAX_RUNS][LONGEST_SOL];
-    int steps[MAX_RUNS];
+    run_t runs[MAX_RUNS];
     for (int i = 0; i < count; i++) {
-        steps[i] = solve(initial_boards[i], solutions[i], INT_MAX);
+        clock_t start_time = clock();
+        runs[i].steps = solve(initial_boards[i], runs[i].solution, INT_MAX);
+        runs[i].time = clock() - start_time;
     }
 
-    clock_t toc = clock() - tic;
-
     for (int i = 0; i < count; i++) {
-        printf("\nSolution for puzzle_t %d\n", i + 1);
-        print_solution(solutions[i], steps[i]);
+        printf("\nSolution for puzzle %d\n", i + 1);
+        print_solution(runs[i].solution, runs[i].steps);
     }
-    printf("\nCompleted in %d ms", (int) toc);
+
+    int total_time = 0;
+    for (int i = 0; i < count; i++) {
+        printf("\nPuzzle %d took %d ms", i + 1, runs[i].time);
+        total_time += runs[i].time;
+    }
+    printf("\nTook %d ms in total\n", total_time);
 
     return 0;
 }

@@ -1,26 +1,34 @@
+open Puzzle_solver
+
 (* Solving the 8puzzle *)
+let run_solutions tiles =
+  List.map
+    (fun tiles ->
+      let s = Unix.gettimeofday () *. 1000.0 in
+      let solution = Solver.solve tiles in
+      let f = Unix.gettimeofday () *. 1000.0 in
+      (solution, f -. s))
+    tiles
+
 let () =
   let file = "8puzzle.txt" in
   let tiles = Puzzle.tiles_of_chan (open_in file) in
+  Printf.printf "Running for %d puzzle input(s)...\n\n" (List.length tiles);
 
-  let runs = 1000 in
-  Printf.printf "Start\n";
+  let solutions = run_solutions tiles in
 
-  let s = Sys.time() *. 1000.0 in
-  
-  let rec run_solutions count =
-    if count > 1 then
-      let _ = Puzzle.solve tiles in
-      run_solutions (count-1)
-    else
-      Puzzle.solve tiles
-  in 
-  let solution = run_solutions runs in
+  List.iteri
+    (fun i (solution, _) ->
+      Printf.printf "Solution for puzzle %d\n" (i + 1);
+      Solver.print_solution solution)
+    solutions;
 
-  let f = Sys.time() *. 1000.0 in
+  List.iteri
+    (fun i (_, time) -> Printf.printf "Puzzle %d took %f ms\n" (i + 1) time)
+    solutions;
 
-  Printf.printf "-Solution-\n\n";
-  let () = Puzzle.print_solution solution in
-
-  Printf.printf "Completed %d runs in %f ms\n" runs (f -. s);
+  let total_time =
+    List.fold_left (fun acc (_, time) -> acc +. time) 0.0 solutions
+  in
+  Printf.printf "Took %f ms in total\n" total_time;
   ()

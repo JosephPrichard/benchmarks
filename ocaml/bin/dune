@@ -1,4 +1,4 @@
 (executable
  (public_name puzzleml)
  (name main)
- (libraries puzzle))
+ (libraries puzzle_solver unix))

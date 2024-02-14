@@ -1,5 +1,6 @@
 package src;
 
+import java.util.List;
 import java.util.Random;
 
 /**
@@ -8,12 +9,6 @@ import java.util.Random;
  */
 public class Utils
 {
-    /**
-     * Clones the provided array of integers
-     *
-     * @param src, the array to be cloned
-     * @return a new clone of the provided array
-     */
     public static int[][] cloneArray(int[][] src) {
         int length = src.length;
         int[][] target = new int[length][src[0].length];
@@ -23,12 +18,6 @@ public class Utils
         return target;
     }
 
-    /**
-     * Checks if an array is a square array at least size NxN
-     *
-     * @param array, to be checked
-     * @return size of square array, -1 if it isn't a square array
-     */
     public static int checkSquare(int[][] array, int n) {
         if (array.length < n || array.length < 1) {
             return -1;
@@ -50,6 +39,28 @@ public class Utils
         }
 
         return array.length;
+    }
+
+    public static int[][] listMatrixToArray(List<List<Integer>> listMatrix) {
+        int[][] arrMatrix = new int[listMatrix.size()][listMatrix.size()];
+        for (int i = 0; i < listMatrix.size(); i++) {
+            for (int j = 0; j < listMatrix.size(); j++) {
+                arrMatrix[i][j] = listMatrix.get(i).get(j);
+            }
+        }
+        return arrMatrix;
+    }
+
+    public static int[] flattenArray(int[][] arr) {
+        int[] flat = new int[arr.length * arr.length];
+        int i = 0;
+        for (int[] row : arr) {
+            for (int e : row) {
+                flat[i] = e;
+                i++;
+            }
+        }
+        return flat;
     }
 
     public static int rand(int min, int max) {
