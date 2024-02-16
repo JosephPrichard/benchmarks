@@ -11,7 +11,7 @@ let run_solutions tiles =
     tiles
 
 let () =
-  let file = "8puzzle.txt" in
+  let file = "8puzzles.txt" in
   let tiles = Puzzle.tiles_of_chan (open_in file) in
   Printf.printf "Running for %d puzzle input(s)...\n\n" (List.length tiles);
 

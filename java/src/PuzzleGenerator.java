@@ -31,7 +31,7 @@ public class PuzzleGenerator {
 
             for (int i = 0; i < size; i++) {
                 PuzzleState puzzle = solver.generateRandomSolvable();
-                puzzle.printPuzzle(stream);
+                puzzle.printPuzzle(stream, "0");
                 stream.println();
             }
         }

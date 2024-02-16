@@ -18,7 +18,7 @@ let () =
   let h = Puzzle.calc_heurstic tiles in
   Printf.printf "Heuristic: %d\n\n" h;
 
-  let row, col = Puzzle.find_empty tiles 0 in
+  let row, col = Puzzle.find_empty tiles in
   Printf.printf "Empty pos: %d,%d\n" row col;
 
   let neighbors =

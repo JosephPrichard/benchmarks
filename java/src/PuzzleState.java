@@ -52,7 +52,7 @@ public class PuzzleState
         this.zeroCol = zeroCol;
     }
 
-    public static PuzzleState stateFromNestedList(List<List<Integer>> curr) {
+    public static PuzzleState fromMatrix(List<List<Integer>> curr) {
         int[][] puzzle = Utils.listMatrixToArray(curr);
         // verify the matrix is a square
         if (Utils.checkSquare(puzzle, 3) == -1) {
@@ -61,7 +61,7 @@ public class PuzzleState
         return new PuzzleState(puzzle);
     }
 
-    public static List<PuzzleState> statesFromFile(File file) throws FileNotFoundException {
+    public static List<PuzzleState> fromFile(File file) throws FileNotFoundException {
         List<PuzzleState> states = new ArrayList<>();
         List<List<Integer>> curr = new ArrayList<>();
 
@@ -72,7 +72,7 @@ public class PuzzleState
             String line = fileReader.nextLine();
             String[] tokens = line.split(" ");
             if (tokens.length == 0 || line.isEmpty()) {
-                states.add(stateFromNestedList(curr));
+                states.add(fromMatrix(curr));
                 curr = new ArrayList<>();
             } else {
                 List<Integer> row = new ArrayList<>();
@@ -85,7 +85,7 @@ public class PuzzleState
             }
         }
 
-        states.add(stateFromNestedList(curr));
+        states.add(fromMatrix(curr));
         return states;
     }
 
@@ -219,13 +219,17 @@ public class PuzzleState
     }
 
     public void printPuzzle() {
-        printPuzzle(System.out);
+        printPuzzle(System.out, " ");
     }
 
-    public void printPuzzle(PrintStream stream) {
+    public void printPuzzle(PrintStream stream, String empty) {
         for (int[] puzzleRow : puzzle) {
             for (int tile : puzzleRow) {
-                stream.print(tile + " ");
+                if (tile == 0) {
+                    stream.print(empty  + " ");
+                } else {
+                    stream.print(tile + " ");
+                }
             }
             stream.println();
         }

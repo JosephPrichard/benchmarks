@@ -22,7 +22,7 @@ public class Main
             System.exit(1);
         }
 
-        List<PuzzleState> states = PuzzleState.statesFromFile(initialFile);
+        List<PuzzleState> states = PuzzleState.fromFile(initialFile);
         System.out.printf("Running for %d puzzle input(s)...\n\n", states.size());
 
         long[] times = new long[states.size()];
@@ -36,12 +36,12 @@ public class Main
 
             times[i] = time;
 
+            System.out.printf("Solution for puzzle %d\n", i + 1);
             for (PuzzleState state : solution) {
                 System.out.println(state.getAction());
                 state.printPuzzle();
             }
-            int size = solution.size() - 1;
-            System.out.printf("Solved in %d steps\n\n", size);
+            System.out.printf("Solved in %d steps\n\n", solution.size() - 1);
         }
 
         long totalTime = 0;

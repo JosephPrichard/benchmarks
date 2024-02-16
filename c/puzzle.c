@@ -13,10 +13,9 @@
 #define ROWS 3
 #define tile_t char
 #define NEIGHBOR_CNT 4
-#define LONGEST_SOL 32
 #define CHILD_CNT 4
 #define LF_THRESHOLD 0.7f
-#define MAX_RUNS 100
+#define MAX_RUNS 1000
 #define MAX_LINE 128
 #define ARENA_SIZE 409600
 
@@ -36,16 +35,16 @@ typedef struct puzzle_t {
     int f;
 } puzzle_t;
 
-typedef struct puzzle_sol {
+typedef struct action_t {
     board_t board;
     move_t move;
-} puzzle_sol_t;
+} action_t;
 
-typedef struct run_t {
-    puzzle_sol_t solution[LONGEST_SOL];
+typedef struct result_t {
+    action_t* solution;
     int steps;
     int time;
-} run_t;
+} result_t;
 
 typedef struct priority_q_t {
     puzzle_t** min_heap;
@@ -59,73 +58,11 @@ typedef struct hash_table_t {
     int capacity;
 } hash_table_t;
 
-typedef struct list_t {
-    puzzle_t** elems;
-    int size;
-    int capacity;
-} vector_t;
-
 typedef struct arena_t {
     struct arena_t* prev;
     char mem[ARENA_SIZE];
     int offset;
 } arena_t;
-
-arena_t* new_arena();
-
-void* arena_alloc(arena_t**, int);
-
-void free_arena(arena_t*);
-
-vector_t* new_vector();
-
-void push_vector(vector_t *vec, puzzle_t *puz);
-
-hash_table_t* new_ht();
-
-int hash_board(const board_t);
-
-void rehash(hash_table_t*);
-
-int probe(hash_table_t*, int, int);
-
-void insert_into_ht(hash_table_t*, int);
-
-void probe_ht(hash_table_t*, int);
-
-int ht_has_key(hash_table_t*, int);
-
-int is_prime(int);
-
-int next_prime(int);
-
-priority_q_t* new_pq();
-
-void ensure_capacity(priority_q_t*);
-
-void push_pq(priority_q_t*, puzzle_t*);
-
-puzzle_t* pop_pq(priority_q_t*);
-
-puzzle_t* new_puzzle(arena_t**, const board_t);
-
-int find_zero(const board_t);
-
-int move_board(board_t, board_t, int, int);
-
-int heuristic(const board_t);
-
-int solve(const board_t, puzzle_sol_t[LONGEST_SOL], int);
-
-int reconstruct_path(puzzle_t*, puzzle_sol_t[LONGEST_SOL]);
-
-void print_board(const board_t);
-
-void print_solution(puzzle_sol_t[LONGEST_SOL], int);
-
-int parse_boards(board_t[], FILE*);
-
-// GLOBALS
 
 static const board_t GOAL_BRD = {0, 1, 2, 3, 4, 5, 6, 7, 8};
 static const int NEIGHBOR_OFFSETS[NEIGHBOR_CNT][2] = {{0, 1}, {1, 0}, {0, -1}, {-1, 0}};
@@ -174,40 +111,28 @@ void free_arena(arena_t* a) {
     }
 }
 
-// VECTOR IMPLEMENTATION
-
-vector_t* new_vector() {
-    vector_t* vec = malloc(sizeof(vector_t));
-    if (vec == NULL) {
-        printf("Failed to allocate vector_t");
-        exit(1);
-    }
-    vec->size = 0;
-    vec->capacity = 10;
-    vec->elems = malloc(sizeof(puzzle_t*) * vec->capacity);
-    if (vec->elems == NULL) {
-        printf("Failed to allocate vector_t elems");
-        exit(1);
-    }
-    return vec;
-}
-
-void push_vector(vector_t* vec, puzzle_t* puz) {
-    // add to block of all puzzles
-    if (vec->size >= vec->capacity) {
-        vec->capacity = vec->capacity * 2;
-        puzzle_t** elems = realloc(vec->elems, sizeof(puzzle_t*) * vec->capacity);
-        if (elems == NULL) {
-            printf("Failed to reallocate vector_t");
-            exit(1);
-        }
-        vec->elems = elems;
-    }
-    vec->elems[vec->size] = puz;
-    vec->size++;
-}
-
 // HASH TABLE IMPLEMENTATION
+
+int is_prime(int n) {
+    // iterate from 2 to sqrt(n)
+    for (int i = 2; i <= sqrt(n); i++) {
+        // if n is divisible by any number between 2 and n/2, it is not prime
+        if (n % i == 0) {
+            return 0;
+        }
+    }
+    if (n <= 1)
+        return 0;
+    return 1;
+}
+
+int next_prime(int n) {
+    for (int i = n;; i++) {
+        if (is_prime(i)) {
+            return i;
+        }
+    }
+}
 
 hash_table_t* new_ht() {
     hash_table_t* ht = malloc(sizeof(hash_table_t));
@@ -236,6 +161,17 @@ int hash_board(const board_t board) {
 
 int probe(hash_table_t* ht, int h, int i) {
     return (h + i) % ht->capacity; // linear probe
+}
+
+void probe_ht(hash_table_t* ht, int key) {
+    // probe until we find a slot to insert
+    for (int i = 0;; i++) {
+        int p = probe(ht, key, i);
+        if (ht->table[p] == 0) {
+            ht->table[p] = key;
+            break;
+        }
+    }
 }
 
 void rehash(hash_table_t* ht) {
@@ -269,17 +205,6 @@ void insert_into_ht(hash_table_t* ht, int key) {
     ht->size++;
 }
 
-void probe_ht(hash_table_t* ht, int key) {
-    // probe until we find a slot to insert
-    for (int i = 0;; i++) {
-        int p = probe(ht, key, i);
-        if (ht->table[p] == 0) {
-            ht->table[p] = key;
-            break;
-        }
-    }
-}
-
 int ht_has_key(hash_table_t* ht, int key) {
     // probe until we find a match or the first empty slot
     for (int i = 0;; i++) {
@@ -290,27 +215,6 @@ int ht_has_key(hash_table_t* ht, int key) {
         } else if (ht->table[p] == key) {
             // hash values match so board_t is in table
             return 1;
-        }
-    }
-}
-
-int is_prime(int n) {
-    // iterate from 2 to sqrt(n)
-    for (int i = 2; i <= sqrt(n); i++) {
-        // if n is divisible by any number between 2 and n/2, it is not prime
-        if (n % i == 0) {
-            return 0;
-        }
-    }
-    if (n <= 1)
-        return 0;
-    return 1;
-}
-
-int next_prime(int n) {
-    for (int i = n;; i++) {
-        if (is_prime(i)) {
-            return i;
         }
     }
 }
@@ -474,8 +378,37 @@ int heuristic(const board_t brd) {
     return h;
 }
 
-int solve(const board_t initial_brd, puzzle_sol_t solution[LONGEST_SOL], int bound) {
-    int steps = 0;
+void reconstruct_path(puzzle_t* leaf_puz, result_t* result) {
+    int size = 10;
+    result->solution = malloc(sizeof(action_t) * size);
+    if (result->solution == NULL) {
+        printf("Failed to allocate solution buffer");
+        exit(1);
+    }
+
+    int i;
+    for(i = 0; leaf_puz != NULL; i++) {
+        if (i >= size) {
+            size *= 2;
+            action_t* new_solution = realloc(result->solution, sizeof(action_t) * size);
+            if (new_solution == NULL) {
+                printf("Failed to reallocate solution buffer");
+                exit(1);
+            }
+            result->solution = new_solution;
+        }
+
+        memcpy(result->solution[i].board, leaf_puz->board, sizeof(board_t));
+        result->solution[i].move = leaf_puz->move;
+
+        leaf_puz = leaf_puz->parent;
+    }
+   result->steps = i;
+}
+
+result_t solve(const board_t initial_brd) {
+    result_t result = {};
+
     int goal_hash = hash_board(GOAL_BRD);
 
     arena_t* arena = new_arena();
@@ -487,7 +420,7 @@ int solve(const board_t initial_brd, puzzle_sol_t solution[LONGEST_SOL], int bou
     push_pq(open_set, root);
 
     // iterate until we find a solution
-    while(open_set->size > 0 && bound-- > 0) {
+    while(open_set->size > 0) {
         // pop off the state with the best heuristic
         puzzle_t* current_puz = pop_pq(open_set);
         int current_hash = hash_board(current_puz->board);
@@ -495,8 +428,7 @@ int solve(const board_t initial_brd, puzzle_sol_t solution[LONGEST_SOL], int bou
 
         // check if we've reached the goal state
         if (current_hash == goal_hash) {
-            // print out solution
-            steps = reconstruct_path(current_puz, solution);
+            reconstruct_path(current_puz, &result);
             break;
         }
 
@@ -530,28 +462,7 @@ int solve(const board_t initial_brd, puzzle_sol_t solution[LONGEST_SOL], int bou
     free(open_set);
     free_arena(arena);
 
-    return steps;
-}
-
-int reconstruct_path(puzzle_t* leaf_puz, puzzle_sol_t solution[LONGEST_SOL]) {
-    int count;
-    for(count = 0; leaf_puz != NULL; count++) {
-        if (count >= LONGEST_SOL) {
-            printf("Solution length exceeded known longest solution constant");
-            exit(1);
-        }
-
-        memcpy(solution[count].board, leaf_puz->board, sizeof(board_t));
-        solution[count].move = leaf_puz->move;
-
-        leaf_puz = leaf_puz->parent;
-    }
-    return count;
-}
-
-void print_puzzle(puzzle_t* puzzle) {
-    printf("G: %d F: %d\n", puzzle->g, puzzle->f);
-    print_board(puzzle->board);
+    return result;
 }
 
 void print_board(const board_t brd) {
@@ -567,7 +478,7 @@ void print_board(const board_t brd) {
     }
 }
 
-void print_solution(puzzle_sol_t solution[LONGEST_SOL], int count) {
+void print_solution(action_t solution[], int count) {
     for (int i = count - 1; i >= 0; i--) {
         printf("%s\n", MOVE_STRINGS[solution[i].move]);
         print_board(solution[i].board);
@@ -609,7 +520,7 @@ int parse_boards(board_t boards[MAX_RUNS], FILE* input_file) {
         memset(line, 0, MAX_LINE);
     }
 
-    return board_index + 1;
+    return board_index;
 }
 
 int main(int argc, char** argv) {
@@ -631,22 +542,23 @@ int main(int argc, char** argv) {
 
     printf("Running for %d puzzle input(s)...\n", count);
 
-    run_t runs[MAX_RUNS];
+    result_t results[MAX_RUNS];
     for (int i = 0; i < count; i++) {
         clock_t start_time = clock();
-        runs[i].steps = solve(initial_boards[i], runs[i].solution, INT_MAX);
-        runs[i].time = clock() - start_time;
+        results[i] = solve(initial_boards[i]);
+        results[i].time = clock() - start_time;
     }
 
     for (int i = 0; i < count; i++) {
         printf("\nSolution for puzzle %d\n", i + 1);
-        print_solution(runs[i].solution, runs[i].steps);
+        print_solution(results[i].solution, results[i].steps);
+        free(results[i].solution);
     }
 
     int total_time = 0;
     for (int i = 0; i < count; i++) {
-        printf("\nPuzzle %d took %d ms", i + 1, runs[i].time);
-        total_time += runs[i].time;
+        printf("\nPuzzle %d took %d ms", i + 1, results[i].time);
+        total_time += results[i].time;
     }
     printf("\nTook %d ms in total\n", total_time);
 
