@@ -1,4 +1,4 @@
-(lang dune 3.8)
+(lang dune 2.9)
 
 (name puzzleml)
 
@@ -12,4 +12,4 @@
 (package
  (name puzzleml)
  (synopsis "Functionally pure implementation of an 8puzzle solver")
- (depends ocaml dune psq unix))
+ (depends ocaml dune psq bignum unix))

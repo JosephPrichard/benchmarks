@@ -8,10 +8,9 @@
 #include <time.h>
 #include <math.h>
 #include <stdint.h>
+#include <sys/time.h>
 
-#define SIZE 9
-#define ROWS 3
-#define tile_t char
+#define MAX_SIZE (4 * 4)
 #define NEIGHBOR_CNT 4
 #define CHILD_CNT 4
 #define LF_THRESHOLD 0.7f
@@ -25,7 +24,15 @@ typedef enum move_t {
     NONE, UP, DOWN, LEFT, RIGHT
 } move_t;
 
-typedef tile_t board_t[SIZE];
+typedef char tile_t;
+
+typedef tile_t board_t[MAX_SIZE];
+
+typedef struct board_input_t {
+    board_t initial_brd;
+    board_t goal_brd;
+    int rows;
+} board_input_t;
 
 typedef struct puzzle_t {
     struct puzzle_t* parent;
@@ -42,8 +49,9 @@ typedef struct action_t {
 
 typedef struct result_t {
     action_t* solution;
+    int rows;
     int steps;
-    int time;
+    double time;
 } result_t;
 
 typedef struct priority_q_t {
@@ -64,7 +72,6 @@ typedef struct arena_t {
     int offset;
 } arena_t;
 
-static const board_t GOAL_BRD = {0, 1, 2, 3, 4, 5, 6, 7, 8};
 static const int NEIGHBOR_OFFSETS[NEIGHBOR_CNT][2] = {{0, 1}, {1, 0}, {0, -1}, {-1, 0}};
 static const int NEIGHBOR_MOVES[NEIGHBOR_CNT] = {RIGHT, DOWN, LEFT, UP};
 static const char* MOVE_STRINGS[] = {"Start", "Up", "Down", "Left", "Right"};
@@ -150,10 +157,10 @@ hash_table_t* new_ht() {
     return ht;
 }
 
-int hash_board(const board_t board) {
+int hash_board(const board_t board, int size) {
     // hash function takes each symbol in the puzzle_t from start to end as a digit
     int hash = 0;
-    for (int i = 0; i < SIZE; i++) {
+    for (int i = 0; i < size; i++) {
         hash += board[i] * (int) pow(10, i);
     }
     return hash;
@@ -335,47 +342,68 @@ puzzle_t* new_puzzle(arena_t** arena, const board_t brd) {
     return puz;
 }
 
-int find_zero(const board_t brd) {
-    for (int i = 0; i < SIZE; i++)
+int find_zero(const board_t brd, int size) {
+    for (int i = 0; i < size; i++)
         if (brd[i] == 0)
             return i;
     printf("board_t doesn't contain 0");
     exit(1);
 }
 
-int move_board(board_t brd_in, board_t brd_out, int row_offset, int col_offset) {
+int move_board(board_t brd_in, board_t brd_out, int row_offset, int col_offset, int rows) {
     // copy input to output (overrides output board_t)
     memcpy(brd_out, brd_in, sizeof(board_t));
     // find the location of the zero on the board_t
-    int zero_loc = find_zero(brd_in);
-    int zero_row = zero_loc / ROWS;
-    int zero_col = zero_loc % ROWS;
+    int zero_index = find_zero(brd_in, rows * rows);
+    int zero_row = zero_index / rows;
+    int zero_col = zero_index % rows;
     // find the location of the tile_t to be swapped
     int swap_row = zero_row + row_offset;
     int swap_col = zero_col + col_offset;
-    int swap_loc = swap_col + ROWS * swap_row;
+    int swap_index = swap_col + rows * swap_row;
     // check if puzzle_t is out of bounds
-    if (swap_row < 0 || swap_row >= ROWS || swap_col < 0 || swap_col >= ROWS) {
+    if (swap_row < 0 || swap_row >= rows || swap_col < 0 || swap_col >= rows) {
         return 1;
     }
     // swap location of 0 with new location
-    tile_t temp = brd_out[zero_loc];
-    brd_out[zero_loc] = brd_out[swap_loc];
-    brd_out[swap_loc] = temp;
+    tile_t temp = brd_out[zero_index];
+    brd_out[zero_index] = brd_out[swap_index];
+    brd_out[swap_index] = temp;
     return 0;
 }
 
-int heuristic(const board_t brd) {
+int heuristic(const board_t brd, int rows) {
     int h = 0;
-    for (int i = 0; i < SIZE; i++) {
-        int row1 = i / ROWS;
-        int col1 = i % ROWS;
-        int row2 = brd[i] / ROWS;
-        int col2 = brd[i] % ROWS;
+    for (int i = 0; i < rows * rows; i++) {
+        int row1 = i / rows;
+        int col1 = i % rows;
+        int row2 = brd[i] / rows;
+        int col2 = brd[i] % rows;
         int manhattan_distance = abs(row2 - row1) + abs(col2 - col1);
         h += manhattan_distance;
     }
     return h;
+}
+
+void print_board(const board_t brd, int rows) {
+    for (int i = 0; i < rows * rows; i++) {
+        if (brd[i] != 0) {
+            printf("%d ", brd[i]);
+        } else {
+            printf("  ");
+        }
+        if ((i + 1) % rows == 0) {
+            printf("\n");
+        }
+    }
+}
+
+void print_solution(result_t result, int rows) {
+    for (int i = result.steps - 1; i >= 0; i--) {
+        printf("%s\n", MOVE_STRINGS[result.solution[i].move]);
+        print_board(result.solution[i].board, rows);
+    }
+    printf("Solved in %d steps\n", result.steps - 1);
 }
 
 void reconstruct_path(puzzle_t* leaf_puz, result_t* result) {
@@ -406,14 +434,15 @@ void reconstruct_path(puzzle_t* leaf_puz, result_t* result) {
    result->steps = i;
 }
 
-result_t solve(const board_t initial_brd) {
+result_t solve(const board_input_t in) {
     result_t result = {};
+    int size = in.rows * in.rows;
 
-    int goal_hash = hash_board(GOAL_BRD);
+    int goal_hash = hash_board(in.goal_brd, size);
 
     arena_t* arena = new_arena();
 
-    puzzle_t* root = new_puzzle(&arena, initial_brd);
+    puzzle_t* root = new_puzzle(&arena, in.initial_brd);
     priority_q_t* open_set = new_pq();
     hash_table_t* closed_set = new_ht();
 
@@ -423,7 +452,7 @@ result_t solve(const board_t initial_brd) {
     while(open_set->size > 0) {
         // pop off the state with the best heuristic
         puzzle_t* current_puz = pop_pq(open_set);
-        int current_hash = hash_board(current_puz->board);
+        int current_hash = hash_board(current_puz->board, size);
         insert_into_ht(closed_set, current_hash);
 
         // check if we've reached the goal state
@@ -432,22 +461,25 @@ result_t solve(const board_t initial_brd) {
             break;
         }
 
+        print_board(current_puz->board, in.rows);
+        printf("\n");
+
         // add neighbor states to the priority queue
         for (int i = 0; i < NEIGHBOR_CNT; i++) {
             board_t neighbor_board = {0};
             int row_offset = NEIGHBOR_OFFSETS[i][0];
             int col_offset = NEIGHBOR_OFFSETS[i][1];
             // write a moved board_t state into the neighbor board_t, then check for error states and if neighbor bord is closed
-            if (move_board(current_puz->board, neighbor_board, row_offset, col_offset) != 0) {
+            if (move_board(current_puz->board, neighbor_board, row_offset, col_offset, in.rows) != 0) {
                 continue;
             }
-            int not_visited = !ht_has_key(closed_set, hash_board(neighbor_board));
+            int not_visited = !ht_has_key(closed_set, hash_board(neighbor_board, size));
             if (not_visited) {
                 // create a new neighbor with the new board_t and calculated states
                 puzzle_t* neighbor_puz = new_puzzle(&arena, neighbor_board);
                 neighbor_puz->parent = current_puz;
                 neighbor_puz->g = current_puz->g + 1;
-                neighbor_puz->f = neighbor_puz->g + heuristic(neighbor_board);
+                neighbor_puz->f = neighbor_puz->g + heuristic(neighbor_board, in.rows);
                 neighbor_puz->move = NEIGHBOR_MOVES[i];
 
                 // add neighbor board_t to pq
@@ -465,38 +497,40 @@ result_t solve(const board_t initial_brd) {
     return result;
 }
 
-void print_board(const board_t brd) {
-    for (int i = 0; i < SIZE; i++) {
-        if (brd[i] != 0) {
-            printf("%d ", brd[i]);
-        } else {
-            printf("  ");
-        }
-        if ((i + 1) % 3 == 0) {
-            printf("\n");
-        }
+int int_sqrt(int size) {
+    float sqf = sqrtf((float) size);
+    float sq_flf = floorf(sqf);
+    if (sqf - sq_flf != 0) {
+        return -1;
+    }
+    return (int) sq_flf;
+}
+
+void init_input(board_input_t* input, int size) {
+    input->rows = int_sqrt(size);
+    if (input->rows < 0) {
+        printf("Board rows must be a perfect square");
+        exit(1);
+    }
+    for (int i = 0; i < size; i++) {
+        input->goal_brd[i] = (tile_t) i;
     }
 }
 
-void print_solution(action_t solution[], int count) {
-    for (int i = count - 1; i >= 0; i--) {
-        printf("%s\n", MOVE_STRINGS[solution[i].move]);
-        print_board(solution[i].board);
-    }
-    printf("Solved in %d steps\n", count - 1);
-}
-
-int parse_boards(board_t boards[MAX_RUNS], FILE* input_file) {
+int parse_inputs(board_input_t inputs[1000], FILE* input_file) {
     int board_index = 0;
     int tile_index = 0;
 
     char line[MAX_LINE] = {0};
     while (fgets(line, sizeof(line), input_file)) {
         if (strcmp(line, "\n") == 0) {
+            init_input(&inputs[board_index], tile_index);
+
             tile_index = 0;
             board_index++;
+
             if (board_index >= MAX_RUNS) {
-                printf("Maximum of %d input boards is allowed", MAX_RUNS);
+                printf("Maximum of %d input inputs is allowed", MAX_RUNS);
                 exit(1);
             }
         } else {
@@ -511,7 +545,12 @@ int parse_boards(board_t boards[MAX_RUNS], FILE* input_file) {
                     exit(1);
                 }
 
-                boards[board_index][tile_index] = t;
+                if (tile_index >= MAX_SIZE){
+                    printf("A puzzle must have no more than %d tiles", tile_index);
+                    exit(1);
+                }
+
+                inputs[board_index].initial_brd[tile_index] = t;
                 tile_index++;
 
                 tok = strtok(NULL, delim);
@@ -536,31 +575,37 @@ int main(int argc, char** argv) {
         exit(1);
     }
 
-    board_t initial_boards[MAX_RUNS] = {0};
-    int count = parse_boards(initial_boards, input_file);
+    board_input_t inputs[MAX_RUNS] = {0};
+    int count = parse_inputs(inputs, input_file);
     fclose(input_file);
 
     printf("Running for %d puzzle input(s)...\n", count);
 
     result_t results[MAX_RUNS];
     for (int i = 0; i < count; i++) {
-        clock_t start_time = clock();
-        results[i] = solve(initial_boards[i]);
-        results[i].time = clock() - start_time;
+        struct timeval start, end;
+        gettimeofday(&start, NULL);
+
+        results[i] = solve(inputs[i]);
+
+        gettimeofday(&end, NULL);
+
+        long elapsed_usec = (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec);
+        results[i].time = ((double) elapsed_usec) / 1000.0;
     }
 
     for (int i = 0; i < count; i++) {
         printf("\nSolution for puzzle %d\n", i + 1);
-        print_solution(results[i].solution, results[i].steps);
+        print_solution(results[i], inputs[i].rows);
         free(results[i].solution);
     }
 
-    int total_time = 0;
+    double total_time = 0;
     for (int i = 0; i < count; i++) {
-        printf("\nPuzzle %d took %d ms", i + 1, results[i].time);
+        printf("\nPuzzle %d took %f ms", i + 1, results[i].time);
         total_time += results[i].time;
     }
-    printf("\nTook %d ms in total\n", total_time);
+    printf("\nTook %f ms in total\n", total_time);
 
     return 0;
 }

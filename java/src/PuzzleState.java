@@ -31,10 +31,10 @@ public class PuzzleState
     public PuzzleState(int[][] puzzle) {
         this.puzzle = puzzle;
         //calculate the position of 0 in current
-        int zeroRow = -1;
-        int zeroCol = -1;
-        for (int i = 0; i < size(); i++) {
-            for (int j = 0; j < size(); j++) {
+        var zeroRow = -1;
+        var zeroCol = -1;
+        for (var i = 0; i < size(); i++) {
+            for (var j = 0; j < size(); j++) {
                 if (puzzle[i][j] == 0) {
                     zeroRow = i;
                     zeroCol = j;
@@ -53,7 +53,7 @@ public class PuzzleState
     }
 
     public static PuzzleState fromMatrix(List<List<Integer>> curr) {
-        int[][] puzzle = Utils.listMatrixToArray(curr);
+        var puzzle = Utils.listMatrixToArray(curr);
         // verify the matrix is a square
         if (Utils.checkSquare(puzzle, 3) == -1) {
             throw new InvalidPuzzleException("Matrices must be square");
@@ -66,17 +66,17 @@ public class PuzzleState
         List<List<Integer>> curr = new ArrayList<>();
 
         // scan through file line by line
-        Scanner fileReader = new Scanner(file);
+        var fileReader = new Scanner(file);
         while (fileReader.hasNext()) {
             // split each line into tokens, parse each token into a matrix value
-            String line = fileReader.nextLine();
-            String[] tokens = line.split(" ");
+            var line = fileReader.nextLine();
+            var tokens = line.split(" ");
             if (tokens.length == 0 || line.isEmpty()) {
                 states.add(fromMatrix(curr));
                 curr = new ArrayList<>();
             } else {
                 List<Integer> row = new ArrayList<>();
-                for (String token : tokens) {
+                for (var token : tokens) {
                     if (!token.isEmpty()) {
                         row.add(Integer.parseInt(token));
                     }
@@ -127,10 +127,10 @@ public class PuzzleState
             return false;
         }
 
-        int[][] puzzle1 = ((PuzzleState) puzzleState).getPuzzle();
+        var puzzle1 = ((PuzzleState) puzzleState).getPuzzle();
 
-        for (int i = 0; i < size(); i++) {
-            for (int j = 0; j < size(); j++) {
+        for (var i = 0; i < size(); i++) {
+            for (var j = 0; j < size(); j++) {
                 if (puzzle[i][j] != puzzle1[i][j]) {
                     return false;
                 }
@@ -141,9 +141,9 @@ public class PuzzleState
 
     @Override
     public int hashCode() {
-        StringBuilder stringBuilder = new StringBuilder();
-        for (int i = 0; i < size(); i++) {
-            for (int j = 0; j < size(); j++) {
+        var stringBuilder = new StringBuilder();
+        for (var i = 0; i < size(); i++) {
+            for (var j = 0; j < size(); j++) {
                 stringBuilder.append(puzzle[i][j]);
             }
         }
@@ -154,13 +154,13 @@ public class PuzzleState
         if (zeroRow - 1 < 0) {
             return null;
         }
-        int[][] clonedPuzzle = Utils.cloneArray(puzzle);
+        var clonedPuzzle = Utils.cloneArray(puzzle);
 
-        int temp = clonedPuzzle[zeroRow][zeroCol];
+        var temp = clonedPuzzle[zeroRow][zeroCol];
         clonedPuzzle[zeroRow][zeroCol] = clonedPuzzle[zeroRow - 1][zeroCol];
         clonedPuzzle[zeroRow - 1][zeroCol] = temp;
 
-        PuzzleState childPuzzleState = new PuzzleState(clonedPuzzle, zeroRow - 1, zeroCol);
+        var childPuzzleState = new PuzzleState(clonedPuzzle, zeroRow - 1, zeroCol);
         childPuzzleState.parent = this;
         childPuzzleState.action = "Up";
         childPuzzleState.g = g + 1;
@@ -171,13 +171,13 @@ public class PuzzleState
         if (zeroRow + 1 > size() -1) {
             return null;
         }
-        int[][] clonedPuzzle = Utils.cloneArray(puzzle);
+        var clonedPuzzle = Utils.cloneArray(puzzle);
 
-        int temp = clonedPuzzle[zeroRow][zeroCol];
+        var temp = clonedPuzzle[zeroRow][zeroCol];
         clonedPuzzle[zeroRow][zeroCol] = clonedPuzzle[zeroRow + 1][zeroCol];
         clonedPuzzle[zeroRow + 1][zeroCol] = temp;
 
-        PuzzleState childPuzzleState = new PuzzleState(clonedPuzzle, zeroRow + 1, zeroCol);
+        var childPuzzleState = new PuzzleState(clonedPuzzle, zeroRow + 1, zeroCol);
         childPuzzleState.parent = this;
         childPuzzleState.action = "Down";
         childPuzzleState.g = g + 1;
@@ -188,13 +188,13 @@ public class PuzzleState
         if (zeroCol - 1 < 0) {
             return null;
         }
-        int[][] clonedPuzzle = Utils.cloneArray(puzzle);
+        var clonedPuzzle = Utils.cloneArray(puzzle);
 
-        int temp = clonedPuzzle[zeroRow][zeroCol];
+        var temp = clonedPuzzle[zeroRow][zeroCol];
         clonedPuzzle[zeroRow][zeroCol] = clonedPuzzle[zeroRow][zeroCol - 1];
         clonedPuzzle[zeroRow][zeroCol - 1] = temp;
 
-        PuzzleState childPuzzleState = new PuzzleState(clonedPuzzle, zeroRow, zeroCol - 1);
+        var childPuzzleState = new PuzzleState(clonedPuzzle, zeroRow, zeroCol - 1);
         childPuzzleState.parent = this;
         childPuzzleState.action = "Left";
         childPuzzleState.g = g + 1;
@@ -205,13 +205,13 @@ public class PuzzleState
         if (zeroCol + 1 > size() -1) {
             return null;
         }
-        int[][] clonedPuzzle = Utils.cloneArray(puzzle);
+        var clonedPuzzle = Utils.cloneArray(puzzle);
 
-        int temp = clonedPuzzle[zeroRow][zeroCol];
+        var temp = clonedPuzzle[zeroRow][zeroCol];
         clonedPuzzle[zeroRow][zeroCol] = clonedPuzzle[zeroRow][zeroCol + 1];
         clonedPuzzle[zeroRow][zeroCol + 1] = temp;
 
-        PuzzleState childPuzzleState = new PuzzleState(clonedPuzzle, zeroRow, zeroCol + 1);
+        var childPuzzleState = new PuzzleState(clonedPuzzle, zeroRow, zeroCol + 1);
         childPuzzleState.parent = this;
         childPuzzleState.action = "Right";
         childPuzzleState.g = g + 1;
@@ -223,8 +223,8 @@ public class PuzzleState
     }
 
     public void printPuzzle(PrintStream stream, String empty) {
-        for (int[] puzzleRow : puzzle) {
-            for (int tile : puzzleRow) {
+        for (var puzzleRow : puzzle) {
+            for (var tile : puzzleRow) {
                 if (tile == 0) {
                     stream.print(empty  + " ");
                 } else {
@@ -236,9 +236,9 @@ public class PuzzleState
     }
 
     public boolean properZeros() {
-        int counter = 0;
-        for (int[] puzzleRow : puzzle) {
-            for (int tile : puzzleRow) {
+        var counter = 0;
+        for (var puzzleRow : puzzle) {
+            for (var tile : puzzleRow) {
                 if (tile == 0) {
                     counter++;
                 }
@@ -248,8 +248,8 @@ public class PuzzleState
     }
 
     public int find0Position() {
-        for (int i = size() - 1; i >= 0; i--) {
-            for (int j = size() - 1; j >= 0; j--) {
+        for (var i = size() - 1; i >= 0; i--) {
+            for (var j = size() - 1; j >= 0; j--) {
                 if (puzzle[i][j] == 0) {
                     return size() - i;
                 }

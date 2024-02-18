@@ -20,17 +20,17 @@ public class PuzzleGenerator {
             System.exit(1);
         }
 
-        String outPath = args[0];
-        int size = Integer.parseInt(args[1]);
-        int n = Integer.parseInt(args[2]);
+        var outPath = args[0];
+        var size = Integer.parseInt(args[1]);
+        var n = Integer.parseInt(args[2]);
 
-        File outFile = new File(outPath);
+        var outFile = new File(outPath);
 
-        try (PrintStream stream = new PrintStream(outFile)) {
-            PuzzleSolver solver = new PuzzleSolver(n);
+        try (var stream = new PrintStream(outFile)) {
+            var solver = new PuzzleSolver(n);
 
-            for (int i = 0; i < size; i++) {
-                PuzzleState puzzle = solver.generateRandomSolvable();
+            for (var i = 0; i < size; i++) {
+                var puzzle = solver.generateRandomSolvable();
                 puzzle.printPuzzle(stream, "0");
                 stream.println();
             }

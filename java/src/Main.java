@@ -16,40 +16,40 @@ public class Main
             System.exit(1);
         }
 
-        File initialFile = new File(args[0]);
+        var initialFile = new File(args[0]);
         if (!initialFile.exists()) {
             System.out.println("Input initial state file doesn't exist");
             System.exit(1);
         }
 
-        List<PuzzleState> states = PuzzleState.fromFile(initialFile);
+        var states = PuzzleState.fromFile(initialFile);
         System.out.printf("Running for %d puzzle input(s)...\n\n", states.size());
 
-        long[] times = new long[states.size()];
-        for (int i = 0; i < states.size(); i++) {
-            PuzzleState initialState = states.get(i);
+        var times = new double[states.size()];
+        for (var i = 0; i < states.size(); i++) {
+            var initialState = states.get(i);
 
-            PuzzleSolver solver = new PuzzleSolver(initialState.size());
-            long startTime = System.currentTimeMillis();
-            List<PuzzleState> solution = solver.findSolution(initialState);
-            long time = System.currentTimeMillis() - startTime;
+            var solver = new PuzzleSolver(initialState.size());
+            var startTime = System.nanoTime();
+            var solution = solver.findSolution(initialState);
+            var time = System.nanoTime() - startTime;
 
-            times[i] = time;
+            times[i] = ((double) time) / 1_000_000;
 
             System.out.printf("Solution for puzzle %d\n", i + 1);
-            for (PuzzleState state : solution) {
+            for (var state : solution) {
                 System.out.println(state.getAction());
                 state.printPuzzle();
             }
             System.out.printf("Solved in %d steps\n\n", solution.size() - 1);
         }
 
-        long totalTime = 0;
-        for (int i = 0; i < states.size(); i++) {
-            System.out.printf("Puzzle %d took %d ms\n", i + 1, times[i]);
+        double totalTime = 0;
+        for (var i = 0; i < states.size(); i++) {
+            System.out.printf("Puzzle %d took %f ms\n", i + 1, times[i]);
             totalTime += times[i];
         }
 
-        System.out.printf("Took %d ms in total\n", totalTime);
+        System.out.printf("Took %f ms in total\n", totalTime);
     }
 }

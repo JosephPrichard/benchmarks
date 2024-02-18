@@ -32,11 +32,11 @@ public class PuzzleSolver
         this.boardSize = boardSize;
 
         // creates the goal state for the specified board size
-        int num = 0;
-        int[][] goalPuzzle = new int[boardSize][];
-        for (int i = 0; i < boardSize; i++) {
+        var num = 0;
+        var goalPuzzle = new int[boardSize][];
+        for (var i = 0; i < boardSize; i++) {
             goalPuzzle[i] = new int[boardSize];
-            for (int j = 0; j < boardSize; j++) {
+            for (var j = 0; j < boardSize; j++) {
                 goalPuzzle[i][j] = num;
                 num++;
             }
@@ -46,13 +46,13 @@ public class PuzzleSolver
     }
 
     public int heuristic(PuzzleState puzzleState) {
-        int[][] puzzle = puzzleState.getPuzzle();
-        int[][] goalPuzzle = goalState.getPuzzle();
-        int h = 0;
-        for (int i = 0; i < boardSize; i++) {
-            for (int j = 0; j < boardSize; j++) {
-                for (int k = 0; k < boardSize; k++) {
-                    for (int l = 0; l < boardSize; l++) {
+        var puzzle = puzzleState.getPuzzle();
+        var goalPuzzle = goalState.getPuzzle();
+        var h = 0;
+        for (var i = 0; i < boardSize; i++) {
+            for (var j = 0; j < boardSize; j++) {
+                for (var k = 0; k < boardSize; k++) {
+                    for (var l = 0; l < boardSize; l++) {
                         if (goalPuzzle[k][l] == puzzle[i][j] && goalPuzzle[k][l] != 0) {
                             h += manhattanDistance(i, j, k, l);
                         }
@@ -69,17 +69,17 @@ public class PuzzleSolver
 
     public List<PuzzleState> findSolution(PuzzleState initialState) {
         // creates the closed set to stores nodes we've already expanded
-        HashSet<PuzzleState> closedSet = new HashSet<>(100);
+        var closedSet = new HashSet<PuzzleState>(100);
         closedSet.add(initialState);
 
         // creates the open set to choose the closest state to the solution at each iteration
-        PriorityQueue<PuzzleState> openSet = new PriorityQueue<>(100, Comparator.comparingInt(PuzzleState::getFScore));
+        var openSet = new PriorityQueue<PuzzleState>(100, Comparator.comparingInt(PuzzleState::getFScore));
         openSet.add(initialState);
 
         // iterate until we find a solution or are out of puzzle states
         while(!openSet.isEmpty()) {
             // pop the closest state off the priority queue
-            PuzzleState currentState = openSet.poll();
+            var currentState = openSet.poll();
             closedSet.add(currentState);
 
             // check if we've reached the goal state, if so we can return the solution
@@ -88,10 +88,10 @@ public class PuzzleSolver
             }
 
             // expand our search by getting the neighbor states for the current state
-            List<PuzzleState> neighborStates = neighborStates(currentState);
+            var neighborStates = neighborStates(currentState);
 
             // for each neighbor, if it isn't already visited update the FScore for ranking and add it to the open set
-            for (PuzzleState neighborState : neighborStates) {
+            for (var neighborState : neighborStates) {
                 if (!closedSet.contains(neighborState)) {
                     neighborState.setFScore(heuristic(neighborState));
                     openSet.add(neighborState);
@@ -103,22 +103,22 @@ public class PuzzleSolver
 
     public List<PuzzleState> neighborStates(PuzzleState current) {
         List<PuzzleState> neighborStates = new ArrayList<>();
-        PuzzleState upPuzzle = current.shiftUp();
+        var upPuzzle = current.shiftUp();
         if (upPuzzle != null) {
             neighborStates.add(upPuzzle);
         }
 
-        PuzzleState downPuzzle = current.shiftDown();
+        var downPuzzle = current.shiftDown();
         if (downPuzzle != null) {
             neighborStates.add(downPuzzle);
         }
 
-        PuzzleState rightPuzzle = current.shiftRight();
+        var rightPuzzle = current.shiftRight();
         if (rightPuzzle != null) {
             neighborStates.add(rightPuzzle);
         }
 
-        PuzzleState leftPuzzle = current.shiftLeft();
+        var leftPuzzle = current.shiftLeft();
         if (leftPuzzle != null) {
             neighborStates.add(leftPuzzle);
         }
@@ -126,8 +126,8 @@ public class PuzzleSolver
     }
 
     public List<PuzzleState> reconstructPath(PuzzleState bottomLeaf) {
-        boolean atRoot = false;
-        PuzzleState current = bottomLeaf;
+        var atRoot = false;
+        var current = bottomLeaf;
         List<PuzzleState> list = new ArrayList<>();
         // traverse tree up through parents until we reach the root
         while (!atRoot) {
@@ -144,12 +144,12 @@ public class PuzzleSolver
     }
 
     public PuzzleState generateRandomSolvable() {
-        int moves = Utils.rand(30,50);
+        var moves = Utils.rand(30,50);
 
-        PuzzleState currentState = goalState;
-        for (int i = 0; i < moves; i++) {
-            List<PuzzleState> neighborStates = neighborStates(currentState);
-            int move = Utils.rand(0, neighborStates.size() - 1);
+        var currentState = goalState;
+        for (var i = 0; i < moves; i++) {
+            var neighborStates = neighborStates(currentState);
+            var move = Utils.rand(0, neighborStates.size() - 1);
             currentState = neighborStates.get(move);
         }
 
@@ -159,10 +159,10 @@ public class PuzzleSolver
     }
 
     public boolean isSolvable(PuzzleState puzzleState) {
-        int invCount = countInversions(puzzleState);
+        var invCount = countInversions(puzzleState);
         if(puzzleState.size() % 2 == 0) {
             // even board size
-            int zeroStart = puzzleState.find0Position();
+            var zeroStart = puzzleState.find0Position();
             return (zeroStart + invCount) % 2 != 0;
         }
         else {
@@ -172,14 +172,14 @@ public class PuzzleSolver
     }
 
     public int countInversions(PuzzleState puzzleState) {
-        int[] puzzle = Utils.flattenArray(puzzleState.getPuzzle());
+        var puzzle = Utils.flattenArray(puzzleState.getPuzzle());
 
-        int inversions = 0;
-        for (int i = 0; i < puzzle.length; i++) {
+        var inversions = 0;
+        for (var i = 0; i < puzzle.length; i++) {
             if (puzzle[i] == 0) {
                 continue;
             }
-            for (int j = i + 1; j < puzzle.length; j++) {
+            for (var j = i + 1; j < puzzle.length; j++) {
                 if (puzzle[j] == 0) {
                     continue;
                 }

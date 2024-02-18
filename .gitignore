@@ -39,3 +39,5 @@ _opam/
 /out
 
 java/out
+
+rust/target/*

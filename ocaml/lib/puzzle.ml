@@ -18,12 +18,13 @@ type t =
 type position = int * int
 type direction = position * string
 
- (* NxN size of the puzzle *)
+(* NxN size of the puzzle *)
 let pos_of_index index size : position = (index / size, index mod size)
 let index_of_pos ((row, col) : position) size = (row * size) + col
 let str_of_pos ((row, col) : position) = Printf.sprintf "%d,%d" row col
 
-let size_of_tiles tiles = int_of_float (sqrt (float_of_int (Array.length tiles)))
+let size_of_tiles tiles =
+  int_of_float (sqrt (float_of_int (Array.length tiles)))
 
 let string_of_move = function
   | None -> "None"
@@ -149,17 +150,27 @@ let tiles_of_chan ic =
       []
       lines
   in
-  List.rev
-   (List.filter 
-      (( <> ) [||]) tiles)
+  List.rev (List.filter (( <> ) [||]) tiles)
 
-let rec int_of_tiles tiles i =
-  let exp = int_of_float (10. ** float_of_int i) in
+let create_goal len =
+  let rec loop i acc =
+    if i >= 0 then
+      loop (i - 1) (i :: acc)
+    else
+      acc
+  in
+  Array.of_list (loop (len - 1) [])
+
+let hash_of_tiles tiles =
+  let rec loop i buf =
   if i < Array.length tiles then
-    let num = tiles.(i) * exp in
-    num + int_of_tiles tiles (i + 1)
+    let str = string_of_int tiles.(i) in
+    let _ = Buffer.add_string buf str in
+    loop (i + 1) buf
   else
-    0
+    Buffer.contents buf
+  in
+  loop 0 (Buffer.create 16)
 
 (* Get the next puzzles for a given puzzle - each generated next puzzle will be linked to this puzzle as a child*)
 let next_puzzles puzzle =
