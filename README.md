@@ -1,4 +1,4 @@
-# SlidingPuzzles
+# Benchmarks
 
 Benchmark of popular programming languages by solving the [sliding puzzle problem](https://en.wikipedia.org/wiki/15_puzzle) using the AStar algorithm.
 Each implementation is guaranteed to find the shortest number of steps to solve any solvable NPuzzle. 

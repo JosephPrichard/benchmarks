@@ -11,6 +11,7 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
+import java.util.function.Consumer;
 
 /**
  *
@@ -18,44 +19,23 @@ import java.util.Scanner;
  */
 public class PuzzleState
 {
+    private final int[][] DIRECTIONS = {{0, -1}, {0, 1}, {1, 0}, {-1, 0}};
+    private final String[] ACTIONS = {"Left", "Right", "Down", "Up"};
+
     private PuzzleState parent = null;
-    private final int[][] puzzle;
+    private final int[] puzzle;
     private String action = "Start";
+    private int f = 0;
+    private int g = 0;
 
-    private final int zeroRow;
-    private final int zeroCol;
-
-    private int f = 0; // ranking value
-    private int g = 0; // path cost
-
-    public PuzzleState(int[][] puzzle) {
+    public PuzzleState(int[] puzzle) {
         this.puzzle = puzzle;
-        //calculate the position of 0 in current
-        var zeroRow = -1;
-        var zeroCol = -1;
-        for (var i = 0; i < size(); i++) {
-            for (var j = 0; j < size(); j++) {
-                if (puzzle[i][j] == 0) {
-                    zeroRow = i;
-                    zeroCol = j;
-                    break;
-                }
-            }
-        }
-        this.zeroRow = zeroRow;
-        this.zeroCol = zeroCol;
     }
 
-    private PuzzleState(int[][] puzzle, int zeroRow, int zeroCol) {
-        this.puzzle = puzzle;
-        this.zeroRow = zeroRow;
-        this.zeroCol = zeroCol;
-    }
-
-    public static PuzzleState fromMatrix(List<List<Integer>> curr) {
-        var puzzle = Utils.listMatrixToArray(curr);
-        // verify the matrix is a square
-        if (Utils.checkSquare(puzzle, 3) == -1) {
+    public static PuzzleState ofList(List<Integer> puzzleList) {
+        var puzzle = puzzleList.stream().mapToInt(x -> x).toArray();
+        var dimension = Math.sqrt(puzzle.length);
+        if (dimension - Math.floor(dimension) != 0) {
             throw new InvalidPuzzleException("Matrices must be square");
         }
         return new PuzzleState(puzzle);
@@ -63,41 +43,41 @@ public class PuzzleState
 
     public static List<PuzzleState> fromFile(File file) throws FileNotFoundException {
         List<PuzzleState> states = new ArrayList<>();
-        List<List<Integer>> curr = new ArrayList<>();
+        List<Integer> currPuzzle = new ArrayList<>();
 
-        // scan through file line by line
         var fileReader = new Scanner(file);
         while (fileReader.hasNext()) {
-            // split each line into tokens, parse each token into a matrix value
             var line = fileReader.nextLine();
             var tokens = line.split(" ");
             if (tokens.length == 0 || line.isEmpty()) {
-                states.add(fromMatrix(curr));
-                curr = new ArrayList<>();
+                states.add(ofList(currPuzzle));
+                currPuzzle = new ArrayList<>();
             } else {
-                List<Integer> row = new ArrayList<>();
                 for (var token : tokens) {
                     if (!token.isEmpty()) {
-                        row.add(Integer.parseInt(token));
+                        currPuzzle.add(Integer.parseInt(token));
                     }
                 }
-                curr.add(row);
             }
         }
 
-        states.add(fromMatrix(curr));
+        states.add(ofList(currPuzzle));
         return states;
     }
 
-    public int size() {
+    public int length() {
         return puzzle.length;
+    }
+
+    public int getDimension() {
+        return (int) Math.sqrt(length());
     }
 
     public PuzzleState getParent() {
         return parent;
     }
 
-    public void setFScore(int h) {
+    public void calcFScore(int h) {
         this.f = g + h;
     }
 
@@ -109,113 +89,73 @@ public class PuzzleState
         return action;
     }
 
-    public int[][] getPuzzle() {
+    public int[] getPuzzle() {
         return puzzle;
     }
 
-    /**
-     * Unlink state from the state tree
-     */
     public void unlink() {
         action = "Start";
         parent = null;
     }
 
-    @Override
-    public boolean equals(Object puzzleState) {
-        if (puzzleState.getClass() != PuzzleState.class) {
-            return false;
-        }
-
-        var puzzle1 = ((PuzzleState) puzzleState).getPuzzle();
-
-        for (var i = 0; i < size(); i++) {
-            for (var j = 0; j < size(); j++) {
-                if (puzzle[i][j] != puzzle1[i][j]) {
-                    return false;
-                }
+    public boolean equals(PuzzleState other) {
+        for (var i = 0; i < length(); i++) {
+            if (puzzle[i] != other.getPuzzle()[i]) {
+                return false;
             }
         }
         return true;
     }
 
     @Override
-    public int hashCode() {
+    public String toString() {
         var stringBuilder = new StringBuilder();
-        for (var i = 0; i < size(); i++) {
-            for (var j = 0; j < size(); j++) {
-                stringBuilder.append(puzzle[i][j]);
+        for (var tile : puzzle) {
+            stringBuilder.append(tile);
+        }
+        return stringBuilder.toString();
+    }
+
+    public boolean inBounds(int index) {
+        return index >= 0 && index < length();
+    }
+
+    public void onNeighbors(Consumer<PuzzleState> onNeighbor) {
+        var dimension = getDimension();
+        var zeroIndex = findZero();
+        var zeroRow = zeroIndex / dimension;
+        var zeroCol = zeroIndex % dimension;
+
+        for (var i = 0; i < DIRECTIONS.length; i++) {
+            var direction = DIRECTIONS[i];
+            var nextRow = zeroRow + direction[0];
+            var nextCol = zeroCol + direction[1];
+            var nextIndex = nextRow * dimension + nextCol;
+
+            if (!inBounds(nextIndex)) {
+                continue;
             }
+
+            var nextPuzzle = new int[puzzle.length];
+            System.arraycopy(puzzle, 0, nextPuzzle, 0, puzzle.length);
+
+            var temp = nextPuzzle[zeroIndex];
+            nextPuzzle[zeroIndex] = nextPuzzle[nextIndex];
+            nextPuzzle[nextIndex] = temp;
+
+            var neighbor = new PuzzleState(nextPuzzle);
+            neighbor.parent = this;
+            neighbor.action = ACTIONS[i];
+            neighbor.g = g + 1;
+
+            onNeighbor.accept(neighbor);
         }
-        return stringBuilder.toString().hashCode();
     }
 
-    public PuzzleState shiftUp() {
-        if (zeroRow - 1 < 0) {
-            return null;
-        }
-        var clonedPuzzle = Utils.cloneArray(puzzle);
-
-        var temp = clonedPuzzle[zeroRow][zeroCol];
-        clonedPuzzle[zeroRow][zeroCol] = clonedPuzzle[zeroRow - 1][zeroCol];
-        clonedPuzzle[zeroRow - 1][zeroCol] = temp;
-
-        var childPuzzleState = new PuzzleState(clonedPuzzle, zeroRow - 1, zeroCol);
-        childPuzzleState.parent = this;
-        childPuzzleState.action = "Up";
-        childPuzzleState.g = g + 1;
-        return childPuzzleState;
-    }
-
-    public PuzzleState shiftDown() {
-        if (zeroRow + 1 > size() -1) {
-            return null;
-        }
-        var clonedPuzzle = Utils.cloneArray(puzzle);
-
-        var temp = clonedPuzzle[zeroRow][zeroCol];
-        clonedPuzzle[zeroRow][zeroCol] = clonedPuzzle[zeroRow + 1][zeroCol];
-        clonedPuzzle[zeroRow + 1][zeroCol] = temp;
-
-        var childPuzzleState = new PuzzleState(clonedPuzzle, zeroRow + 1, zeroCol);
-        childPuzzleState.parent = this;
-        childPuzzleState.action = "Down";
-        childPuzzleState.g = g + 1;
-        return childPuzzleState;
-    }
-
-    public PuzzleState shiftLeft() {
-        if (zeroCol - 1 < 0) {
-            return null;
-        }
-        var clonedPuzzle = Utils.cloneArray(puzzle);
-
-        var temp = clonedPuzzle[zeroRow][zeroCol];
-        clonedPuzzle[zeroRow][zeroCol] = clonedPuzzle[zeroRow][zeroCol - 1];
-        clonedPuzzle[zeroRow][zeroCol - 1] = temp;
-
-        var childPuzzleState = new PuzzleState(clonedPuzzle, zeroRow, zeroCol - 1);
-        childPuzzleState.parent = this;
-        childPuzzleState.action = "Left";
-        childPuzzleState.g = g + 1;
-        return childPuzzleState;
-    }
-
-    public PuzzleState shiftRight() {
-        if (zeroCol + 1 > size() -1) {
-            return null;
-        }
-        var clonedPuzzle = Utils.cloneArray(puzzle);
-
-        var temp = clonedPuzzle[zeroRow][zeroCol];
-        clonedPuzzle[zeroRow][zeroCol] = clonedPuzzle[zeroRow][zeroCol + 1];
-        clonedPuzzle[zeroRow][zeroCol + 1] = temp;
-
-        var childPuzzleState = new PuzzleState(clonedPuzzle, zeroRow, zeroCol + 1);
-        childPuzzleState.parent = this;
-        childPuzzleState.action = "Right";
-        childPuzzleState.g = g + 1;
-        return childPuzzleState;
+    public List<PuzzleState> getNeighbors() {
+        List<PuzzleState> neighbors = new ArrayList<>();
+        onNeighbors(neighbors::add);
+        return neighbors;
     }
 
     public void printPuzzle() {
@@ -223,38 +163,26 @@ public class PuzzleState
     }
 
     public void printPuzzle(PrintStream stream, String empty) {
-        for (var puzzleRow : puzzle) {
-            for (var tile : puzzleRow) {
-                if (tile == 0) {
-                    stream.print(empty  + " ");
-                } else {
-                    stream.print(tile + " ");
-                }
+        var dimension = getDimension();
+        for (var i = 0; i < puzzle.length; i++) {
+            var tile = puzzle[i];
+            if (tile == 0) {
+                stream.print(empty  + " ");
+            } else {
+                stream.print(tile + " ");
             }
-            stream.println();
+            if ((i + 1) % dimension == 0) {
+                stream.println();
+            }
         }
     }
 
-    public boolean properZeros() {
-        var counter = 0;
-        for (var puzzleRow : puzzle) {
-            for (var tile : puzzleRow) {
-                if (tile == 0) {
-                    counter++;
-                }
+    public int findZero() {
+        for (var i = 0; i < puzzle.length; i++) {
+            if (puzzle[i] == 0) {
+               return i;
             }
         }
-        return counter == 1;
-    }
-
-    public int find0Position() {
-        for (var i = size() - 1; i >= 0; i--) {
-            for (var j = size() - 1; j >= 0; j--) {
-                if (puzzle[i][j] == 0) {
-                    return size() - i;
-                }
-            }
-        }
-        return -1;
+        throw new InvalidPuzzleException("Puzzle must have a 0 tile");
     }
 }

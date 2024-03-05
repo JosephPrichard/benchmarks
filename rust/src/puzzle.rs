@@ -1,9 +1,6 @@
-use std::cmp::Ordering;
-use std::collections::{BinaryHeap, HashSet};
 use std::hash::{Hash, Hasher};
 use std::{fmt, ops};
 use std::fmt::Formatter;
-use bumpalo::Bump;
 
 type Tile = u8;
 
@@ -14,12 +11,12 @@ pub struct Position {
 }
 
 impl Position {
-    fn of_index(i: usize) -> Self {
-        Self { row: (i as i32) / 3, col: (i as i32) % 3 }
+    fn of_index(i: usize, dim: i32) -> Self {
+        Self { row: (i as i32) / dim, col: (i as i32) % dim }
     }
 
-    fn to_index(&self) -> usize {
-        (self.row * 3 + self.col) as usize
+    fn to_index(&self, dim: i32) -> usize {
+        (self.row * dim + self.col) as usize
     }
 
     fn in_bounds(&self) -> bool {
@@ -32,38 +29,48 @@ impl ops::Add<Position> for Position {
     type Output = Position;
 
     fn add(self, rhs: Position) -> Self::Output {
-        Position { row: self.row + rhs.row, col: self.col + self.col }
+        Position { row: self.row + rhs.row, col: self.col + rhs.col }
     }
 }
 
-pub type Tiles = [Tile; 9];
-
-#[derive(Debug, Copy, Clone)]
-pub struct Puzzle {
-    tiles: Tiles,
+#[derive(Debug, Clone)]
+pub struct Puzzle<const N: usize> {
+    tiles: [Tile; N],
     action: &'static str,
 }
 
 static DIRECTIONS: [(Position, &'static str); 4] = [
-    (Position {row: 0, col: 1}, "Left"),
-    (Position {row: 0, col: -1}, "Right"),
-    (Position {row: 1, col: 0}, "Up"),
-    (Position {row: -1, col: 0}, "Down"),
+    (Position {row: 0, col: 1}, "Right"),
+    (Position {row: 0, col: -1}, "Left"),
+    (Position {row: 1, col: 0}, "Down"),
+    (Position {row: -1, col: 0}, "Up"),
 ];
 
-impl Puzzle {
-    pub fn new() -> Self {
-        Self { tiles: [0; 9], action: "" }
+const fn int_sqrt(n: i32) -> i32 {
+    if n <= 1 {
+        return n;
     }
+    let mut x = n;
+    let mut y = (x + 1) / 2;
+    while y < x {
+        x = y;
+        y = (x + n / x) / 2;
+    }
+    x
+}
 
-    pub fn from_tiles(tiles: Tiles) -> Self {
-        Self { tiles, action: "" }
+impl<const N: usize> Puzzle<N> {
+
+    const DIM: i32 = int_sqrt(N as i32);
+
+    pub fn from_tiles(tiles: [Tile; N]) -> Self {
+        Self { tiles, action: ""}
     }
 
     pub fn from_u8_slice(slice: &[u8]) -> Self {
-        let mut tiles = [0; 9];
+        let mut tiles = [0; N];
         for (i, t) in slice.iter().enumerate() {
-            if i >= 9 {
+            if i >= tiles.len() {
                 return Self::from_tiles(tiles)
             }
             tiles[i] = *t;
@@ -71,39 +78,39 @@ impl Puzzle {
         Self::from_tiles(tiles)
     }
 
-    fn goal() -> Self {
-        let mut tiles: Tiles = [0; 9];
-        for i in 0..9 {
+    pub fn goal() -> Self {
+        let mut tiles = [0; N];
+        for i in 0..tiles.len() {
             tiles[i] = i as Tile;
         }
         Self::from_tiles(tiles)
     }
 
     fn find_zero(&self) -> Position {
-        for i in 0..9 {
+        for i in 0..self.tiles.len() {
             if self.tiles[i] == 0 {
-                return Position::of_index(i);
+                return Position::of_index(i, Self::DIM);
             }
         }
         panic!("Puzzle doesn't contain a zero: this shouldn't happen")
     }
 
-    fn heuristic(&self) -> i32 {
+    pub fn heuristic(&self) -> i32 {
         let mut h = 0i32;
-        for i in 0..9 {
-            let pos1 = Position::of_index(i);
-            let pos2 = Position::of_index(self.tiles[i] as usize);
+        for i in 0..self.tiles.len() {
+            let pos1 = Position::of_index(i, Self::DIM);
+            let pos2 = Position::of_index(self.tiles[i] as usize, Self::DIM);
             h += (pos2.row - pos1.row).abs() + (pos2.col - pos1.col).abs()
         }
         h
     }
 
-    fn on_neighbors<F: FnMut(Self) -> ()>(&self, mut f: F) {
+    pub fn on_neighbors<F: FnMut(Self) -> ()>(&self, mut f: F) {
         let zero_pos = self.find_zero();
         for (d_pos, action) in DIRECTIONS {
             let new_pos = zero_pos + d_pos;
             if new_pos.in_bounds() {
-                let mut new_puzzle = Self::from_tiles(self.tiles);
+                let mut new_puzzle = Self::from_tiles(self.tiles.clone());
 
                 let temp = new_puzzle[new_pos];
                 new_puzzle[new_pos] = new_puzzle[zero_pos];
@@ -117,7 +124,7 @@ impl Puzzle {
     }
 }
 
-impl fmt::Display for Puzzle {
+impl<const N: usize> fmt::Display for Puzzle<N> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let action = if self.action.is_empty() { "None" } else { self.action };
         writeln!(f, "{}", action)?;
@@ -131,112 +138,30 @@ impl fmt::Display for Puzzle {
     }
 }
 
-impl PartialEq<Self> for Puzzle {
+impl<const N: usize> PartialEq<Self> for Puzzle<N> {
     fn eq(&self, other: &Self) -> bool {
         self.tiles == other.tiles
     }
 }
 
-impl Eq for Puzzle {}
+impl<const N: usize> Eq for Puzzle<N> {}
 
-impl ops::Index<Position> for Puzzle {
+impl<const N: usize> ops::Index<Position> for Puzzle<N> {
     type Output = Tile;
 
     fn index(&self, pos: Position) -> &Self::Output {
-        &self.tiles[pos.to_index()]
+        &self.tiles[pos.to_index(Self::DIM)]
     }
 }
 
-impl ops::IndexMut<Position> for Puzzle {
+impl<const N: usize> ops::IndexMut<Position> for Puzzle<N> {
     fn index_mut(&mut self, pos: Position) -> &mut Self::Output {
-        &mut self.tiles[pos.to_index()]
+        &mut self.tiles[pos.to_index(Self::DIM)]
     }
 }
 
-impl Hash for Puzzle {
+impl<const N: usize> Hash for Puzzle<N> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.tiles.hash(state)
     }
-}
-
-pub struct Node<'a> {
-    puzzle: Puzzle,
-    prev: Option<&'a Node<'a>>,
-    g: i32,
-    f: i32,
-}
-
-impl<'a> PartialEq<Self> for Node<'a> {
-    fn eq(&self, other: &Self) -> bool {
-        self.f == other.f
-    }
-}
-
-impl<'a> Eq for Node<'a> {}
-
-impl<'a> PartialOrd for Node<'a> {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.f.partial_cmp(&other.f)
-    }
-}
-
-impl<'a> Ord for Node<'a> {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.f.cmp(&other.f)
-    }
-}
-
-impl<'a> Node<'a> {
-    fn new_root(puzzle: Puzzle) -> Self {
-        Self { puzzle, prev: None, g: 0, f: 0 }
-    }
-
-    fn new_child(puzzle: Puzzle, prev: &'a Node<'a>) -> Self {
-        Self {
-            puzzle,
-            prev: Some(prev),
-            g: prev.g,
-            f: prev.g + puzzle.heuristic(),
-        }
-    }
-}
-
-pub fn reconstruct_path(root: &Node) -> Vec<Puzzle> {
-    let mut path = vec![];
-    let mut curr = Some(root);
-    while let Some(n) = curr {
-        path.push(n.puzzle);
-        curr = n.prev;
-    }
-    path.reverse();
-    path
-}
-
-pub fn find_path(initial: Puzzle) -> Vec<Puzzle> {
-    let arena = Bump::new();
-
-    let mut visited: HashSet<Puzzle> = HashSet::new();
-    let mut frontier: BinaryHeap<&Node> = BinaryHeap::new();
-
-    let root = Node::new_root(initial);
-    frontier.push(&root);
-
-    let goal = Puzzle::goal();
-
-    while let Some(n) = frontier.pop() {
-        if &n.puzzle == &goal {
-            return reconstruct_path(n);
-        }
-
-        visited.insert(n.puzzle);
-
-        n.puzzle.on_neighbors(|puzzle: Puzzle| {
-            if !visited.contains(&puzzle) {
-                let child = arena.alloc(Node::new_child(puzzle, n));
-                frontier.push(child);
-            }
-        })
-    }
-
-    vec![]
 }

@@ -1,3 +1,0 @@
-(test
- (name puzzle_test)
- (libraries puzzle_solver))

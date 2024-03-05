@@ -2,7 +2,6 @@ package src;
 
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.util.List;
 
 /**
  *
@@ -29,7 +28,7 @@ public class Main
         for (var i = 0; i < states.size(); i++) {
             var initialState = states.get(i);
 
-            var solver = new PuzzleSolver(initialState.size());
+            var solver = new PuzzleSolver(initialState.length());
             var startTime = System.nanoTime();
             var solution = solver.findSolution(initialState);
             var time = System.nanoTime() - startTime;

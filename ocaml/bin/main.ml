@@ -1,14 +1,11 @@
 open Puzzle_solver
-open Puzzle_solver.Solver
-
-module PureSolver = Solver.Make (PureSearchState)
 
 (* Solving the 8puzzle *)
 let run_solutions tiles =
   List.map
     (fun tiles ->
       let s = Unix.gettimeofday () *. 1000.0 in
-      let solution = PureSolver.solve tiles in
+      let solution = Solver.solve tiles in
       let f = Unix.gettimeofday () *. 1000.0 in
       (solution, f -. s))
     tiles
@@ -24,9 +21,10 @@ let () =
     let solutions = run_solutions tiles in
 
     List.iteri
-      (fun i (solution, _) ->
+      (fun i (path, _) ->
         Printf.printf "Solution for puzzle %d\n" (i + 1);
-        Solver.print_solution solution)
+        List.iter (Puzzle.print_puzzle "\n") path;
+        Printf.printf "Solved in %d steps\n\n" (List.length path - 1))
       solutions;
 
     List.iteri
@@ -38,5 +36,3 @@ let () =
     in
     Printf.printf "Took %f ms in total\n" total_time;
     ()
-
-  

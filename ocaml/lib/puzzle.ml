@@ -163,12 +163,12 @@ let create_goal len =
 
 let hash_of_tiles tiles =
   let rec loop i buf =
-  if i < Array.length tiles then
-    let str = string_of_int tiles.(i) in
-    let _ = Buffer.add_string buf str in
-    loop (i + 1) buf
-  else
-    Buffer.contents buf
+    if i < Array.length tiles then
+      let str = string_of_int tiles.(i) in
+      let _ = Buffer.add_string buf str in
+      loop (i + 1) buf
+    else
+      Buffer.contents buf
   in
   loop 0 (Buffer.create 16)
 

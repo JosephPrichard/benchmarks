@@ -10,6 +10,7 @@
 #include <stdint.h>
 #include <sys/time.h>
 
+#define LONGEST_SOL 100
 #define MAX_SIZE (4 * 4)
 #define NEIGHBOR_CNT 4
 #define CHILD_CNT 4
@@ -48,8 +49,7 @@ typedef struct action_t {
 } action_t;
 
 typedef struct result_t {
-    action_t* solution;
-    int rows;
+    action_t solution[LONGEST_SOL];
     int steps;
     double time;
 } result_t;
@@ -407,31 +407,17 @@ void print_solution(result_t result, int rows) {
 }
 
 void reconstruct_path(puzzle_t* leaf_puz, result_t* result) {
-    int size = 10;
-    result->solution = malloc(sizeof(action_t) * size);
-    if (result->solution == NULL) {
-        printf("Failed to allocate solution buffer");
-        exit(1);
-    }
-
     int i;
     for(i = 0; leaf_puz != NULL; i++) {
-        if (i >= size) {
-            size *= 2;
-            action_t* new_solution = realloc(result->solution, sizeof(action_t) * size);
-            if (new_solution == NULL) {
-                printf("Failed to reallocate solution buffer");
-                exit(1);
-            }
-            result->solution = new_solution;
+        if (i >= LONGEST_SOL) {
+            printf("An optimal solution should be no longer than %d steps", LONGEST_SOL);
+            exit(1);
         }
-
         memcpy(result->solution[i].board, leaf_puz->board, sizeof(board_t));
         result->solution[i].move = leaf_puz->move;
-
         leaf_puz = leaf_puz->parent;
     }
-   result->steps = i;
+    result->steps = i;
 }
 
 result_t solve(const board_input_t in) {
@@ -460,9 +446,6 @@ result_t solve(const board_input_t in) {
             reconstruct_path(current_puz, &result);
             break;
         }
-
-        print_board(current_puz->board, in.rows);
-        printf("\n");
 
         // add neighbor states to the priority queue
         for (int i = 0; i < NEIGHBOR_CNT; i++) {
@@ -517,22 +500,21 @@ void init_input(board_input_t* input, int size) {
     }
 }
 
-int parse_inputs(board_input_t inputs[1000], FILE* input_file) {
+int parse_inputs(board_input_t inputs[MAX_RUNS], FILE* input_file) {
     int board_index = 0;
     int tile_index = 0;
 
     char line[MAX_LINE] = {0};
     while (fgets(line, sizeof(line), input_file)) {
         if (strcmp(line, "\n") == 0) {
+            if (board_index >= MAX_RUNS) {
+                printf("Maximum of %d inputs is allowed", MAX_RUNS);
+                exit(1);
+            }
             init_input(&inputs[board_index], tile_index);
 
             tile_index = 0;
             board_index++;
-
-            if (board_index >= MAX_RUNS) {
-                printf("Maximum of %d input inputs is allowed", MAX_RUNS);
-                exit(1);
-            }
         } else {
             char* tok;
             char* delim = " \n";
@@ -597,7 +579,6 @@ int main(int argc, char** argv) {
     for (int i = 0; i < count; i++) {
         printf("\nSolution for puzzle %d\n", i + 1);
         print_solution(results[i], inputs[i].rows);
-        free(results[i].solution);
     }
 
     double total_time = 0;

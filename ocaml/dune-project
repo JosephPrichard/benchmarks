@@ -12,4 +12,4 @@
 (package
  (name puzzleml)
  (synopsis "Functionally pure implementation of an 8puzzle solver")
- (depends ocaml dune psq bignum unix))
+ (depends ocaml dune psq unix))

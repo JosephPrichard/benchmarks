@@ -24,7 +24,7 @@ const Puzzle<N>& Puzzle<N>::get_goal() {
 }
 
 template<std::size_t N>
-Puzzle<N> *Puzzle<N>::get_prev() const {
+Puzzle<N>* Puzzle<N>::get_prev() const {
     return prev;
 }
 
@@ -79,7 +79,7 @@ position Puzzle<N>::pos_of_index(int index) {
 
 
 template<std::size_t N>
-template <typename F>
+template<typename F>
 void Puzzle<N>::on_neighbors(const F& on_neighbor) {
     const static std::array<direction, 4> DIRECTIONS =
         {direction{position{0, -1}, "Left"},
@@ -88,7 +88,7 @@ void Puzzle<N>::on_neighbors(const F& on_neighbor) {
          direction{position{0, 1}, "Right"}};
 
     auto zero_pos = find_zero();
-    for (auto &direction : DIRECTIONS) {
+    for (auto& direction: DIRECTIONS) {
         auto pos_vec = std::get<0>(direction);
         auto new_pos = zero_pos + pos_vec;
         if (in_bounds(new_pos)) {
@@ -115,14 +115,14 @@ bool Puzzle<N>::in_bounds(position pos) {
 }
 
 template<std::size_t N>
-tile &Puzzle<N>::operator[](position pos) {
+tile& Puzzle<N>::operator[](position pos) {
     auto row = std::get<0>(pos);
     auto col = std::get<1>(pos);
     return tiles[row * N + col];
 }
 
 template<std::size_t N>
-bool operator==(const Puzzle<N> &lhs, const Puzzle<N> &rhs) {
+bool operator==(const Puzzle<N>& lhs, const Puzzle<N>& rhs) {
     for (int i = 0; i < Puzzle<N>::SIZE; i++) {
         if (lhs[i] != rhs[i]) {
             return false;
@@ -132,7 +132,7 @@ bool operator==(const Puzzle<N> &lhs, const Puzzle<N> &rhs) {
 }
 
 template<std::size_t N>
-std::ostream &operator<<(std::ostream &os, const Puzzle<N> &puzzle) {
+std::ostream& operator<<(std::ostream& os, const Puzzle<N>& puzzle) {
     for (int i = 0; i < Puzzle<N>::SIZE; i++) {
         os << puzzle[i];
         if ((i + 1) % N == 0) {
