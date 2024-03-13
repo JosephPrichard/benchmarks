@@ -41,3 +41,8 @@ _opam/
 java/out
 
 rust/target/*
+
+c/run
+c/puzzle.exe
+cpp/run
+cpp/puzzle.exe

@@ -9,6 +9,8 @@
 #include <math.h>
 #include <stdint.h>
 #include <sys/time.h>
+#include <errno.h>
+#include <stdlib.h>
 
 #define LONGEST_SOL 100
 #define MAX_SIZE (4 * 4)
@@ -52,13 +54,14 @@ typedef struct result_t {
     action_t solution[LONGEST_SOL];
     int steps;
     double time;
+    int nodes;
 } result_t;
 
-typedef struct priority_q_t {
+typedef struct priorityq_t {
     puzzle_t** min_heap;
     int size;
     int capacity;
-} priority_q_t;
+} priorityq_t;
 
 typedef struct hash_table_t {
     int* table;
@@ -81,7 +84,7 @@ static const char* MOVE_STRINGS[] = {"Start", "Up", "Down", "Left", "Right"};
 arena_t* new_arena() {
     arena_t* a = malloc(sizeof(arena_t));
     if (a == NULL) {
-        printf("Failed to allocate arena");
+        printf("Failed to allocate arena\n");
         exit(1);
     }
     memset(a->mem, 0, ARENA_SIZE);
@@ -144,14 +147,14 @@ int next_prime(int n) {
 hash_table_t* new_ht() {
     hash_table_t* ht = malloc(sizeof(hash_table_t));
     if (ht == NULL) {
-        printf("Failed to allocate hash_table_t");
+        printf("Failed to allocate hash_table\n");
         exit(1);
     }
     ht->capacity = next_prime(10);
     ht->table = calloc(ht->capacity, sizeof(int));
     ht->size = 0;
     if (ht->table == NULL) {
-        printf("Failed to allocate hash_table_t table");
+        printf("Failed to allocate hash_table\n");
         exit(1);
     }
     return ht;
@@ -190,7 +193,7 @@ void rehash(hash_table_t* ht) {
     ht->table = calloc(ht->capacity, sizeof(int));
     // check for allocation errors
     if (ht->table == NULL) {
-        printf("hash_table_t reallocation failed");
+        printf("hash_table reallocation failed\n");
         exit(1);
     }
     // add all keys from the old to the new min_heap
@@ -228,37 +231,37 @@ int ht_has_key(hash_table_t* ht, int key) {
 
 // PQ IMPLEMENTATION
 
-priority_q_t* new_pq() {
-    priority_q_t* pq = malloc(sizeof(priority_q_t));
+priorityq_t* new_pq() {
+    priorityq_t* pq = malloc(sizeof(priorityq_t));
     if (pq == NULL) {
-        printf("Failed to allocate priority_q_t");
+        printf("Failed to allocate priority queue\n");
         exit(1);
     }
     pq->capacity = 10;
     pq->min_heap = malloc(sizeof(puzzle_t) * pq->capacity);
     pq->size = 0;
     if (pq->min_heap == NULL) {
-        printf("Failed to allocate priority_q_t heap");
+        printf("Failed to allocate priority queue heap\n");
         exit(1);
     }
     return pq;
 }
 
-void ensure_capacity(priority_q_t* pq) {
+void ensure_capacity(priorityq_t* pq) {
     // ensure min_heap's capacity is large enough
     if (pq->size >= pq->capacity) {
         pq->capacity = pq->capacity * 2;
         puzzle_t** min_heap = realloc(pq->min_heap, sizeof(puzzle_t) * pq->capacity);
         // check for allocation errors
         if (min_heap == NULL) {
-            printf("priority_q_t reallocation failed");
+            printf("priority queue reallocation failed\n");
             exit(1);
         }
         pq->min_heap = min_heap;
     }
 }
 
-void push_pq(priority_q_t* pq, puzzle_t* puz) {
+void push_pq(priorityq_t* pq, puzzle_t* puz) {
     ensure_capacity(pq);
     // add element to end of min_heap
     pq->min_heap[pq->size] = puz;
@@ -282,10 +285,10 @@ void push_pq(priority_q_t* pq, puzzle_t* puz) {
     pq->size++;
 }
 
-puzzle_t* pop_pq(priority_q_t* pq) {
+puzzle_t* pop_pq(priorityq_t* pq) {
     // check for empty min_heap
     if (pq->size == 0) {
-        printf("Can't pop an empty min_heap");
+        printf("Can't pop an empty priority queue\n");
         exit(1);
     }
     // extract top element and move_t bottom to top
@@ -331,7 +334,7 @@ puzzle_t* pop_pq(priority_q_t* pq) {
 puzzle_t* new_puzzle(arena_t** arena, const board_t brd) {
     puzzle_t* puz = arena_alloc(arena, sizeof(puzzle_t));
     if (puz == NULL) {
-        printf("Failed to allocate puzzle_t on arena");
+        printf("Failed to allocate puzzle on arena\n");
         exit(1);
     }
     memcpy(puz->board, brd, sizeof(board_t));
@@ -403,14 +406,14 @@ void print_solution(result_t result, int rows) {
         printf("%s\n", MOVE_STRINGS[result.solution[i].move]);
         print_board(result.solution[i].board, rows);
     }
-    printf("Solved in %d steps\n", result.steps - 1);
+    printf("Solved in %d steps, explored %d nodes \n", result.steps - 1, result.nodes);
 }
 
 void reconstruct_path(puzzle_t* leaf_puz, result_t* result) {
     int i;
     for(i = 0; leaf_puz != NULL; i++) {
         if (i >= LONGEST_SOL) {
-            printf("An optimal solution should be no longer than %d steps", LONGEST_SOL);
+            printf("An optimal solution should be no longer than %d steps\n", LONGEST_SOL);
             exit(1);
         }
         memcpy(result->solution[i].board, leaf_puz->board, sizeof(board_t));
@@ -421,7 +424,7 @@ void reconstruct_path(puzzle_t* leaf_puz, result_t* result) {
 }
 
 result_t solve(const board_input_t in) {
-    result_t result = {};
+    result_t result = {.nodes = 0};
     int size = in.rows * in.rows;
 
     int goal_hash = hash_board(in.goal_brd, size);
@@ -429,17 +432,18 @@ result_t solve(const board_input_t in) {
     arena_t* arena = new_arena();
 
     puzzle_t* root = new_puzzle(&arena, in.initial_brd);
-    priority_q_t* open_set = new_pq();
+    priorityq_t* open_set = new_pq();
     hash_table_t* closed_set = new_ht();
 
     push_pq(open_set, root);
 
-    // iterate until we find a solution
     while(open_set->size > 0) {
         // pop off the state with the best heuristic
         puzzle_t* current_puz = pop_pq(open_set);
         int current_hash = hash_board(current_puz->board, size);
         insert_into_ht(closed_set, current_hash);
+
+        result.nodes += 1;
 
         // check if we've reached the goal state
         if (current_hash == goal_hash) {
@@ -492,7 +496,7 @@ int int_sqrt(int size) {
 void init_input(board_input_t* input, int size) {
     input->rows = int_sqrt(size);
     if (input->rows < 0) {
-        printf("Board rows must be a perfect square");
+        printf("Board rows must be a perfect square\n");
         exit(1);
     }
     for (int i = 0; i < size; i++) {
@@ -508,7 +512,7 @@ int parse_inputs(board_input_t inputs[MAX_RUNS], FILE* input_file) {
     while (fgets(line, sizeof(line), input_file)) {
         if (strcmp(line, "\n") == 0) {
             if (board_index >= MAX_RUNS) {
-                printf("Maximum of %d inputs is allowed", MAX_RUNS);
+                printf("Maximum of %d inputs is allowed\n", MAX_RUNS);
                 exit(1);
             }
             init_input(&inputs[board_index], tile_index);
@@ -523,12 +527,12 @@ int parse_inputs(board_input_t inputs[MAX_RUNS], FILE* input_file) {
             while (tok != NULL) {
                 tile_t t = (tile_t) strtol(tok, NULL, 10);
                 if (errno) {
-                    printf("Failed to parse a token to tile_t %s with errno %d", tok, errno);
+                    printf("Failed to parse a token to tile_t %s with errno %d\n", tok, errno);
                     exit(1);
                 }
 
                 if (tile_index >= MAX_SIZE){
-                    printf("A puzzle must have no more than %d tiles", tile_index);
+                    printf("A puzzle must have no more than %d tiles\n", tile_index);
                     exit(1);
                 }
 
@@ -546,14 +550,14 @@ int parse_inputs(board_input_t inputs[MAX_RUNS], FILE* input_file) {
 
 int main(int argc, char** argv) {
     if (argc <= 1) {
-        printf("Need at least 1 program argument");
+        printf("Need at least 1 program argument\n");
         return 1;
     }
 
     char* file_path = argv[1];
     FILE* input_file = fopen(file_path, "r");
     if (input_file == NULL) {
-        printf("Failed to open input file %s.", file_path);
+        printf("Failed to open input file %s\n", file_path);
         exit(1);
     }
 

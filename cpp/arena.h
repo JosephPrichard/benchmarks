@@ -6,44 +6,41 @@
 #define CPP_ARENA_H
 
 #include <vector>
+#include <memory>
 
-template<class T, int BLK_SZ = 10000>
+template<class T, int BLK_SZ = 4096>
 class Arena {
 public:
-    T* alloc();
-
-    std::array<T, BLK_SZ>* last_block();
+    T* alloc(T);
+private:
+    std::vector<T>& last_block();
 
     void next_block();
-private:
-    std::vector<std::array<T, BLK_SZ>> blocks;
-    int blocks_cnt = 0;
+
+    std::vector<std::unique_ptr<std::vector<T>>> blocks;
     int elem_cnt = 0;
 };
 
 template<class T, int BLK_SZ>
 void Arena<T, BLK_SZ>::next_block() {
-    blocks.push_back(std::array<T, BLK_SZ>());
-    blocks_cnt++;
+    auto block = std::make_unique<std::vector<T>>(std::vector<T>(BLK_SZ));
+    blocks.push_back(std::move(block));
     elem_cnt = 0;
 }
 
 template<class T, int BLK_SZ>
-std::array<T, BLK_SZ>* Arena<T, BLK_SZ>::last_block() {
-    return &blocks[blocks.size() - 1];
+std::vector<T>& Arena<T, BLK_SZ>::last_block() {
+    if (blocks.size() <= 0 || elem_cnt >= BLK_SZ) {
+        next_block();
+    }
+    return *blocks.at(blocks.size() - 1);
 }
 
 template<class T, int BLK_SZ>
-T* Arena<T, BLK_SZ>::alloc() {
-    if (blocks_cnt == 0) {
-        next_block();
-    }
-    std::array<T, BLK_SZ>* block = last_block();
-    if (elem_cnt >= BLK_SZ) {
-        next_block();
-        block = last_block();
-    }
-    T* ptr = &(*block)[elem_cnt];
+T* Arena<T, BLK_SZ>::alloc(T elem) {
+    auto& block = last_block();
+    T* ptr = block.data() + elem_cnt;
+    *ptr = elem;
     elem_cnt++;
     return ptr;
 }

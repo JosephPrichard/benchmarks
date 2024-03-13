@@ -5,7 +5,7 @@ Each implementation is guaranteed to find the shortest number of steps to solve 
 
 The sliding puzzle problem is a space-exploration problem involving list/array traversal, map/priority queue usage, copying, and lots of memory allocation. This makes it an effective way of benchmarking how efficient a programming language is.
 
-Currently includes implementations for Java, C, Elixir, and OCaml. Many more to come - implementing a sliding puzzle solver has become my primary way to learn a new language. 
+Currently includes implementations for Java, C, C++, Rust, Go, OCaml, and Python. Many more to come - implementing a sliding puzzle solver has become my primary way to learn a new language. 
 
 # Usage
 Any puzzle solver executable can be invoked with a command line argument. The command line argument is a path to a file containing newline seperated puzzles to solve.

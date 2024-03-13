@@ -51,8 +51,8 @@ type Puzzle struct {
 	dim    int
 }
 
-func NewPuzzle(prev *Puzzle, tiles []Tile) Puzzle {
-	return Puzzle{prev: prev, tiles: tiles, dim: IntSqrt(len(tiles))}
+func NewPuzzle(prev *Puzzle, tiles []Tile, dim int) Puzzle {
+	return Puzzle{prev: prev, tiles: tiles, dim: dim}
 }
 
 func NewGoal(len int) []Tile {
@@ -78,7 +78,7 @@ func (puzzle Puzzle) PrintPuzzle() {
 	case Right:
 		fmt.Println("Right")
 	default:
-		fmt.Println("None")
+		fmt.Println("Start")
 	}
 	dim := IntSqrt(len(puzzle.tiles))
 	for i, tile := range puzzle.tiles {
@@ -109,11 +109,11 @@ func abs(i int) int {
 	return i
 }
 
-func (puzzle Puzzle) Heuristic(dim int) int {
+func (puzzle Puzzle) Heuristic() int {
 	h := 0
 	for i, tile := range puzzle.tiles {
-		pos1 := IndexToPos(i, dim)
-		pos2 := IndexToPos(int(tile), dim)
+		pos1 := IndexToPos(i, puzzle.dim)
+		pos2 := IndexToPos(int(tile), puzzle.dim)
 		h += abs(pos2.row-pos1.row) + abs(pos2.col-pos1.col)
 	}
 	return h
@@ -156,17 +156,15 @@ func (puzzle Puzzle) OnNeighbors(onNeighbor func(puzzle Puzzle)) {
 			continue
 		}
 
-		nextPuzzle := NewPuzzle(&puzzle, slices.Clone(puzzle.tiles))
+		nextPuzzle := NewPuzzle(&puzzle, slices.Clone(puzzle.tiles), puzzle.dim)
 
 		temp := nextPuzzle.tiles[newPos.ToIndex(puzzle.dim)]
 		nextPuzzle.tiles[newPos.ToIndex(puzzle.dim)] = nextPuzzle.tiles[zeroPos.ToIndex(puzzle.dim)]
 		nextPuzzle.tiles[zeroPos.ToIndex(puzzle.dim)] = temp
 
-		nextPuzzle.prev = &puzzle
 		nextPuzzle.g = puzzle.g + 1
-		nextPuzzle.f = nextPuzzle.g + nextPuzzle.Heuristic(puzzle.dim)
+		nextPuzzle.f = nextPuzzle.g + nextPuzzle.Heuristic()
 		nextPuzzle.action = direction.action
-		nextPuzzle.dim = puzzle.dim
 
 		onNeighbor(nextPuzzle)
 	}
@@ -176,30 +174,39 @@ type PuzzleHeap struct {
 	array []Puzzle
 }
 
-func (heap PuzzleHeap) Len() int {
-	return len(heap.array)
+func (h PuzzleHeap) Len() int {
+	return len(h.array)
 }
 
-func (heap PuzzleHeap) Less(i, j int) bool {
-	return heap.array[i].f < heap.array[j].f
+func (h PuzzleHeap) Less(i, j int) bool {
+	return h.array[i].f < h.array[j].f
 }
 
-func (heap PuzzleHeap) Swap(i, j int) {
-	heap.array[i], heap.array[j] = heap.array[j], heap.array[i]
+func (h PuzzleHeap) Swap(i, j int) {
+	h.array[i], h.array[j] = h.array[j], h.array[i]
 }
 
-func (heap *PuzzleHeap) Push(x interface{}) {
-	heap.array = append(heap.array, x.(Puzzle))
+func (h *PuzzleHeap) Push(x interface{}) {
+	h.array = append(h.array, x.(Puzzle))
 }
 
-func (heap PuzzleHeap) LastIndex() int {
-	return len(heap.array) - 1
+func (h PuzzleHeap) lastIndex() int {
+	return len(h.array) - 1
 }
 
-func (heap *PuzzleHeap) Pop() interface{} {
-	last := heap.array[heap.LastIndex()]
-	heap.array = heap.array[:heap.LastIndex()]
+func (h *PuzzleHeap) Pop() interface{} {
+	last := h.array[h.lastIndex()]
+	h.array = h.array[:h.lastIndex()]
 	return last
+}
+
+func (h *PuzzleHeap) Debug() {
+	clonedHeap := PuzzleHeap{array: slices.Clone(h.array)}
+	for clonedHeap.Len() > 0 {
+		puzzle := heap.Pop(&clonedHeap).(Puzzle)
+		fmt.Print(puzzle.f, " ")
+	}
+	fmt.Println()
 }
 
 func ReconstructPath(puzzle *Puzzle) []Puzzle {
@@ -212,7 +219,7 @@ func ReconstructPath(puzzle *Puzzle) []Puzzle {
 	return path
 }
 
-func FindPath(initial Puzzle) []Puzzle {
+func FindPath(initial Puzzle) ([]Puzzle, int) {
 	visited := make(map[string]bool)
 
 	frontier := PuzzleHeap{array: make([]Puzzle, 0)}
@@ -221,13 +228,15 @@ func FindPath(initial Puzzle) []Puzzle {
 
 	goal := NewGoal(len(initial.tiles))
 
+	nodes := 0
 	for frontier.Len() > 0 {
 		puzzle := heap.Pop(&frontier).(Puzzle)
+		nodes += 1
 
 		visited[puzzle.Hash()] = true
 
 		if Equals(puzzle.tiles, goal) {
-			return ReconstructPath(&puzzle)
+			return ReconstructPath(&puzzle), nodes
 		}
 
 		puzzle.OnNeighbors(func(puzzle Puzzle) {
@@ -238,7 +247,7 @@ func FindPath(initial Puzzle) []Puzzle {
 		})
 	}
 
-	return make([]Puzzle, 0)
+	return make([]Puzzle, 0), nodes
 }
 
 func ReadPuzzles(path string) []Puzzle {
@@ -272,7 +281,8 @@ func ReadPuzzles(path string) []Puzzle {
 			if len(current) == 0 {
 				continue
 			}
-			puzzles = append(puzzles, NewPuzzle(nil, current))
+			dim := IntSqrt(len(current))
+			puzzles = append(puzzles, NewPuzzle(nil, current, dim))
 			current = make([]Tile, 0)
 		}
 	}
@@ -293,7 +303,7 @@ func main() {
 	fmt.Printf("Running solution for %d puzzle input(s)...\n\n", len(puzzles))
 	for i, puzzle := range puzzles {
 		start := time.Now()
-		solution := FindPath(puzzle)
+		solution, nodes := FindPath(puzzle)
 		duration := time.Since(start).Microseconds()
 
 		times = append(times, float64(duration)/1000.0)
@@ -304,7 +314,7 @@ func main() {
 			puzzle.PrintPuzzle()
 			steps += 1
 		}
-		fmt.Printf("Solved in %d steps\n\n", steps-1)
+		fmt.Printf("Solved in %d steps, expanded %d nodes\n\n", steps-1, nodes)
 	}
 
 	var totalTime float64

@@ -21,7 +21,7 @@ let rec add_neighbors puzzles frontier visited =
       add_neighbors puzzles (OrderedPuzzles.add key puzzle frontier) visited)
   | [] -> frontier
 
-let rec search frontier visited goal_tiles =
+let rec search frontier visited goal_tiles nodes =
   (* Get the BEST puzzle from the frontier - no puzzle means we end the search with no solution *)
   match OrderedPuzzles.min frontier with
   | Some (key, puzzle) ->
@@ -30,12 +30,12 @@ let rec search frontier visited goal_tiles =
     let visited = VisitedSet.add (Puzzle.hash_of_tiles puzzle.tiles) () visited in
     (* Check if the puzzle matches the goal solution *)
     if puzzle.tiles = goal_tiles then
-      reconstruct_path puzzle []
+      (reconstruct_path puzzle [], nodes)
     else
       let neighbors = next_puzzles puzzle in
       let frontier = add_neighbors neighbors frontier visited in
-      search frontier visited goal_tiles
-  | None -> []
+      search frontier visited goal_tiles (nodes+1)
+  | None -> ([], nodes)
 
 let solve tiles =
   let initial = { parent = None; tiles; gscore = 0; fscore = 0; move = None } in
@@ -46,3 +46,4 @@ let solve tiles =
        OrderedPuzzles.empty)
     VisitedSet.empty
     (Puzzle.create_goal (Array.length initial.tiles))
+    0

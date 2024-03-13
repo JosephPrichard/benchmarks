@@ -1,5 +1,6 @@
 #include <iostream>
 #include <fstream>
+#include <chrono>
 #include "puzzle.h"
 
 template<typename F>
@@ -14,15 +15,16 @@ void split_string(std::string s, std::string delim, std::size_t max, const F& f)
         s.erase(0, pos + 1);
         f(token);
     }
+    f(s);
 }
 
 template<std::size_t N>
-std::vector<std::array<tile, N * N>> read_tiles(std::istream& is) {
+std::vector<std::array<Tile, N * N>> read_tiles(std::istream& is) {
     constexpr std::size_t SIZE = N * N;
 
     int index = 0;
-    std::array<tile, SIZE> curr_tiles;
-    std::vector<std::array<tile, SIZE>> puzzles;
+    std::array<Tile, SIZE> curr_tiles;
+    std::vector<std::array<Tile, SIZE>> puzzles;
     std::string line;
 
     while (is.good()) {
@@ -34,9 +36,11 @@ std::vector<std::array<tile, N * N>> read_tiles(std::istream& is) {
         }
 
         split_string(line, " ", N, [&curr_tiles, &index](std::string& token) {
-            tile tile = stoi(token);
-            curr_tiles[index] = tile;
-            index++;
+            if (token != "") {
+                Tile tile = stoi(token);
+                curr_tiles[index] = tile;
+                index++;
+            }
         });
     }
 
@@ -52,11 +56,35 @@ int main(int argc, char* argv[]) {
     std::fstream fs;
     fs.open(argv[1]);
 
-    auto tiles_vec = read_tiles<3>(fs);
-    for (auto tiles: tiles_vec) {
-        Puzzle<3> puzzle(tiles);
-        auto solution = find_path<3>(puzzle);
+    std::vector<float> times;
+
+    auto tiles = read_tiles<4>(fs);
+    for (int i = 0; i < tiles.size(); i++) {
+        Puzzle<4> puzzle(tiles[i]);
+
+        auto start = std::chrono::high_resolution_clock::now();
+        auto path = Puzzle<4>::find_path(puzzle);
+        auto stop = std::chrono::high_resolution_clock::now();
+
+        auto duration =  std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
+        times.push_back(duration.count() / 1000.0f);
+
+        auto solution = std::get<0>(path);
+        auto nodes = std::get<1>(path);
+
+        std::cout << "Solution for puzzle " << (i + 1) << std::endl;
+        for (auto p : solution) {
+            std::cout << p;
+        }
+        std::cout << "Solved in " << (solution.size() - 1) << " steps, expanded " << nodes << " nodes \n" << std::endl;
     }
+
+    float total = 0;
+    for (int i = 0; i < times.size(); i++) {
+        std::cout << "Puzzle " << (i + 1) << " took " << times[i] << " ms" << std::endl;
+        total += times[i];
+    }
+    std::cout << "Took " << total << " ms in total" << std::endl;
 
     return 0;
 }

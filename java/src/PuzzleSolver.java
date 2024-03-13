@@ -12,7 +12,8 @@ import java.util.*;
  */
 public class PuzzleSolver
 {
-    private final PuzzleState goalState;
+    private final Puzzle goalState;
+    private int nodes = 0;
 
     public PuzzleSolver(int boardSize) {
         var num = 0;
@@ -21,10 +22,14 @@ public class PuzzleSolver
             goalPuzzle[i] = num;
             num++;
         }
-        this.goalState = new PuzzleState(goalPuzzle);
+        this.goalState = new Puzzle(goalPuzzle);
     }
 
-    public int heuristic(PuzzleState puzzleState) {
+    public int getNodes() {
+        return nodes;
+    }
+
+    public int heuristic(Puzzle puzzleState) {
         var puzzle = puzzleState.getPuzzle();
         var dimension = puzzleState.getDimension();
         var h = 0;
@@ -42,16 +47,25 @@ public class PuzzleSolver
         return Math.abs(row2 - row1) + Math.abs(col2 - col1);
     }
 
-    public List<PuzzleState> findSolution(PuzzleState initialState) {
-        var visited = new HashSet<String>();
-        visited.add(initialState.toString());
+    public void debug(PriorityQueue<Puzzle> frontier) {
+        var clonedFrontier = frontier.toArray(new Puzzle[0]);
+        Arrays.sort(clonedFrontier, Comparator.comparingInt(Puzzle::getFScore));
+        for (var puzzle : clonedFrontier) {
+            System.out.print(puzzle.getFScore() + " ");
+        }
+        System.out.println();
+    }
 
-        var frontier = new PriorityQueue<>(Comparator.comparingInt(PuzzleState::getFScore));
+    public List<Puzzle> findSolution(Puzzle initialState) {
+        var visited = new HashSet<String>();
+        var frontier = new PriorityQueue<>(Comparator.comparingInt(Puzzle::getFScore));
         frontier.add(initialState);
 
+        nodes = 0;
         while(!frontier.isEmpty()) {
             var currentState = frontier.poll();
             visited.add(currentState.toString());
+            nodes += 1;
 
             if(currentState.equals(goalState)) {
                 return reconstructPath(currentState);
@@ -68,8 +82,8 @@ public class PuzzleSolver
         return new ArrayList<>();
     }
 
-    public List<PuzzleState> reconstructPath(PuzzleState currentState) {
-        List<PuzzleState> list = new ArrayList<>();
+    public List<Puzzle> reconstructPath(Puzzle currentState) {
+        List<Puzzle> list = new ArrayList<>();
         while (currentState != null) {
             list.add(currentState);
             currentState = currentState.getParent();
@@ -82,7 +96,7 @@ public class PuzzleSolver
         return (int) (Math.random() * (max + 1 - min)) + min;
     }
 
-    public PuzzleState generateRandomSolvable() {
+    public Puzzle generateRandomSolvable() {
         var moves = randRange(30, 50);
 
         var currentState = goalState;

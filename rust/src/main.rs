@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::time::Instant;
 use crate::AnyPuzzle::{EightPuzzle, FifteenPuzzle};
-use crate::puzzle::{Puzzle};
+use crate::puzzle::Puzzle;
 
 mod puzzle;
 mod solver;
@@ -47,9 +47,9 @@ fn read_puzzles(file: File) -> Vec<AnyPuzzle> {
     puzzles
 }
 
-fn run_puzzle<const N: usize>(puzzle: Puzzle<N>, times: &mut Vec<f64>) {
+fn run_puzzle<const N: usize>(puzzle: Puzzle<N>, times: &mut Vec<f64>) -> u32 {
     let start = Instant::now();
-    let solution = solver::find_path(puzzle);
+    let (solution, nodes) = solver::find_path(puzzle);
     let elapsed = start.elapsed();
 
     times.push((elapsed.as_micros() as f64) / 1000f64);
@@ -59,7 +59,8 @@ fn run_puzzle<const N: usize>(puzzle: Puzzle<N>, times: &mut Vec<f64>) {
         print!("{}", puzzle);
         steps += 1;
     }
-    println!("Solved in {} steps\n", steps)
+    println!("Solved in {} steps, expanded {} nodes\n", steps - 1, nodes);
+    nodes
 }
 
 fn main() {
@@ -71,14 +72,15 @@ fn main() {
     let file = File::open(&args[1]).unwrap();
     let puzzles = read_puzzles(file);
 
+    let mut total_nodes = 0;
     let times = &mut vec![];
 
-    println!("Running solution for {} puzzle input(s)...\n\n", puzzles.len());
+    println!("Running solution for {} puzzle input(s)...\n", puzzles.len());
 
     // puzzle sizes are all known at compile time for the purpose of efficiency
     for (i, puzzle) in puzzles.iter().enumerate() {
         println!("Solution for puzzle {}", i+1);
-        match puzzle {
+        total_nodes += match puzzle {
             EightPuzzle(puzzle) => run_puzzle(puzzle.to_owned(), times),
             FifteenPuzzle(puzzle) => run_puzzle(puzzle.to_owned(), times)
         };
@@ -90,5 +92,5 @@ fn main() {
         total_time += time
     }
 
-    println!("Took {} ms in total", total_time)
+    println!("Took {} ms in total, expanded {} nodes in total", total_time, total_nodes)
 }

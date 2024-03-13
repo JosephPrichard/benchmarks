@@ -17,32 +17,32 @@ import java.util.function.Consumer;
  *
  * @author Joseph Prichard
  */
-public class PuzzleState
+public class Puzzle
 {
     private final int[][] DIRECTIONS = {{0, -1}, {0, 1}, {1, 0}, {-1, 0}};
     private final String[] ACTIONS = {"Left", "Right", "Down", "Up"};
 
-    private PuzzleState parent = null;
+    private Puzzle parent = null;
     private final int[] puzzle;
     private String action = "Start";
     private int f = 0;
     private int g = 0;
 
-    public PuzzleState(int[] puzzle) {
+    public Puzzle(int[] puzzle) {
         this.puzzle = puzzle;
     }
 
-    public static PuzzleState ofList(List<Integer> puzzleList) {
+    public static Puzzle ofList(List<Integer> puzzleList) {
         var puzzle = puzzleList.stream().mapToInt(x -> x).toArray();
         var dimension = Math.sqrt(puzzle.length);
         if (dimension - Math.floor(dimension) != 0) {
             throw new InvalidPuzzleException("Matrices must be square");
         }
-        return new PuzzleState(puzzle);
+        return new Puzzle(puzzle);
     }
 
-    public static List<PuzzleState> fromFile(File file) throws FileNotFoundException {
-        List<PuzzleState> states = new ArrayList<>();
+    public static List<Puzzle> fromFile(File file) throws FileNotFoundException {
+        List<Puzzle> states = new ArrayList<>();
         List<Integer> currPuzzle = new ArrayList<>();
 
         var fileReader = new Scanner(file);
@@ -73,7 +73,7 @@ public class PuzzleState
         return (int) Math.sqrt(length());
     }
 
-    public PuzzleState getParent() {
+    public Puzzle getParent() {
         return parent;
     }
 
@@ -98,7 +98,7 @@ public class PuzzleState
         parent = null;
     }
 
-    public boolean equals(PuzzleState other) {
+    public boolean equals(Puzzle other) {
         for (var i = 0; i < length(); i++) {
             if (puzzle[i] != other.getPuzzle()[i]) {
                 return false;
@@ -116,11 +116,11 @@ public class PuzzleState
         return stringBuilder.toString();
     }
 
-    public boolean inBounds(int index) {
-        return index >= 0 && index < length();
+    public static boolean inBounds(int row, int col, int dimension) {
+        return row >= 0 && row < dimension && col >= 0 && col < dimension;
     }
 
-    public void onNeighbors(Consumer<PuzzleState> onNeighbor) {
+    public void onNeighbors(Consumer<Puzzle> onNeighbor) {
         var dimension = getDimension();
         var zeroIndex = findZero();
         var zeroRow = zeroIndex / dimension;
@@ -130,20 +130,20 @@ public class PuzzleState
             var direction = DIRECTIONS[i];
             var nextRow = zeroRow + direction[0];
             var nextCol = zeroCol + direction[1];
-            var nextIndex = nextRow * dimension + nextCol;
 
-            if (!inBounds(nextIndex)) {
+            if (!inBounds(nextRow, nextCol, dimension)) {
                 continue;
             }
 
             var nextPuzzle = new int[puzzle.length];
             System.arraycopy(puzzle, 0, nextPuzzle, 0, puzzle.length);
 
+            var nextIndex = nextRow * dimension + nextCol;
             var temp = nextPuzzle[zeroIndex];
             nextPuzzle[zeroIndex] = nextPuzzle[nextIndex];
             nextPuzzle[nextIndex] = temp;
 
-            var neighbor = new PuzzleState(nextPuzzle);
+            var neighbor = new Puzzle(nextPuzzle);
             neighbor.parent = this;
             neighbor.action = ACTIONS[i];
             neighbor.g = g + 1;
@@ -152,8 +152,8 @@ public class PuzzleState
         }
     }
 
-    public List<PuzzleState> getNeighbors() {
-        List<PuzzleState> neighbors = new ArrayList<>();
+    public List<Puzzle> getNeighbors() {
+        List<Puzzle> neighbors = new ArrayList<>();
         onNeighbors(neighbors::add);
         return neighbors;
     }

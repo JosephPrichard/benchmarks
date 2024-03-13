@@ -5,9 +5,9 @@ let run_solutions tiles =
   List.map
     (fun tiles ->
       let s = Unix.gettimeofday () *. 1000.0 in
-      let solution = Solver.solve tiles in
+      let solution, nodes = Solver.solve tiles in
       let f = Unix.gettimeofday () *. 1000.0 in
-      (solution, f -. s))
+      (solution, nodes, f -. s))
     tiles
 
 let () =
@@ -21,18 +21,18 @@ let () =
     let solutions = run_solutions tiles in
 
     List.iteri
-      (fun i (path, _) ->
+      (fun i (path, nodes, _) ->
         Printf.printf "Solution for puzzle %d\n" (i + 1);
         List.iter (Puzzle.print_puzzle "\n") path;
-        Printf.printf "Solved in %d steps\n\n" (List.length path - 1))
+        Printf.printf "Solved in %d steps, exploring %d nodes\n\n" (List.length path - 1) nodes)
       solutions;
 
     List.iteri
-      (fun i (_, time) -> Printf.printf "Puzzle %d took %f ms\n" (i + 1) time)
+      (fun i (_, _, time) -> Printf.printf "Puzzle %d took %f ms\n" (i + 1) time)
       solutions;
 
     let total_time =
-      List.fold_left (fun acc (_, time) -> acc +. time) 0.0 solutions
+      List.fold_left (fun acc (_, _, time) -> acc +. time) 0.0 solutions
     in
     Printf.printf "Took %f ms in total\n" total_time;
     ()

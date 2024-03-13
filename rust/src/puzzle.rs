@@ -1,4 +1,4 @@
-use std::hash::{Hash, Hasher};
+use std::hash::{DefaultHasher, Hash, Hasher};
 use std::{fmt, ops};
 use std::fmt::Formatter;
 
@@ -19,9 +19,9 @@ impl Position {
         (self.row * dim + self.col) as usize
     }
 
-    fn in_bounds(&self) -> bool {
-        self.row >= 0 && self.row < 3
-            && self.col >= 0 && self.col < 3
+    fn in_bounds(&self, dim: i32) -> bool {
+        self.row >= 0 && self.row < dim
+            && self.col >= 0 && self.col < dim
     }
 }
 
@@ -109,7 +109,7 @@ impl<const N: usize> Puzzle<N> {
         let zero_pos = self.find_zero();
         for (d_pos, action) in DIRECTIONS {
             let new_pos = zero_pos + d_pos;
-            if new_pos.in_bounds() {
+            if new_pos.in_bounds(Self::DIM) {
                 let mut new_puzzle = Self::from_tiles(self.tiles.clone());
 
                 let temp = new_puzzle[new_pos];
@@ -122,15 +122,21 @@ impl<const N: usize> Puzzle<N> {
             }
         }
     }
+
+    pub fn hash_u64(&self) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        self.hash(&mut hasher);
+        hasher.finish()
+    }
 }
 
 impl<const N: usize> fmt::Display for Puzzle<N> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        let action = if self.action.is_empty() { "None" } else { self.action };
+        let action = if self.action.is_empty() { "Start" } else { self.action };
         writeln!(f, "{}", action)?;
-        for i in 0..9 {
+        for i in 0..self.tiles.len() {
             write!(f, "{} ", self.tiles[i])?;
-            if (i + 1) % 3 == 0 {
+            if (i + 1) % (Self::DIM as usize) == 0 {
                 writeln!(f)?;
             }
         }

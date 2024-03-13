@@ -7,8 +7,7 @@ bug-reports: "https://github.com/JosephPrichard/Puzzle.ml/issues"
 depends: [
   "ocaml"
   "dune" {>= "2.9"}
-  "core"
-  "core_kernel"
+  "psq"
   "unix"
   "odoc" {with-doc}
 ]

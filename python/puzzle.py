@@ -147,11 +147,13 @@ def find_path(initial: Puzzle):
 
     goal = create_goal(len(initial.tiles))
 
+    nodes = 0
     while len(frontier) > 0:
         curr_puzzle = heapq.heappop(frontier)
+        nodes += 1
 
         if curr_puzzle.equals(goal):
-            return reconstruct_path(curr_puzzle)
+            return reconstruct_path(curr_puzzle), nodes
 
         visited[curr_puzzle.hash()] = True
 
@@ -161,7 +163,7 @@ def find_path(initial: Puzzle):
 
         curr_puzzle.neighbors(on_neighbor)
 
-    return []
+    return [], nodes
 
 def read_puzzles(s: str) -> list[Puzzle]:
     puzzles = []
@@ -176,11 +178,9 @@ def read_puzzles(s: str) -> list[Puzzle]:
                 if token != "":
                     curr_tiles.append(int(token))
         else:
-            puzzles.append(Puzzle(curr_tiles))
-            curr_tiles = []
-
-    puzzles.append(Puzzle(curr_tiles))
-
+            if len(curr_tiles) > 0:
+                puzzles.append(Puzzle(curr_tiles))
+                curr_tiles = []
     return puzzles
 
 
@@ -196,14 +196,14 @@ def main():
             for puzzle in puzzles:
                 start = time.perf_counter()
 
-                path = find_path(puzzle)
+                solution, nodes = find_path(puzzle)
 
                 end = time.perf_counter()
                 times.append((end - start) * 1000.0)
 
-                for p in path:
+                for p in solution:
                     p.print()
-                print(f"Solved in {len(path)} steps\n")
+                print(f"Solved in {len(solution) - 1} steps, explored {nodes} nodes\n")
 
             total = 0
             for i in range(0, len(times)):
