@@ -42,7 +42,15 @@ java/out
 
 rust/target/*
 
-c/run
-c/puzzle.exe
-cpp/run
-cpp/puzzle.exe
+*.exe
+*.js
+
+*.jar
+
+csharp/npuzzle/.vs
+csharp/npuzzle/bin
+csharp/npuzzle/obj
+
+nodejs/node_modules
+
+*/bench-results.txt

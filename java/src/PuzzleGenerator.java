@@ -6,6 +6,7 @@ package src;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.io.PrintStream;
 
 /**
@@ -14,7 +15,7 @@ import java.io.PrintStream;
  */
 public class PuzzleGenerator {
 
-    public static void main(String[] args) throws FileNotFoundException {
+    public static void main(String[] args) throws IOException {
         if (args.length < 3) {
             System.out.println("Needs at least 3 arguments - the file path, number of puzzles, and nxn puzzle size");
             System.exit(1);

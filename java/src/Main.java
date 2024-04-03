@@ -24,6 +24,7 @@ public class Main
         var states = Puzzle.fromFile(initialFile);
         System.out.printf("Running for %d puzzle input(s)...\n\n", states.size());
 
+        var totalNodes = 0;
         var times = new double[states.size()];
         for (var i = 0; i < states.size(); i++) {
             var initialState = states.get(i);
@@ -40,7 +41,10 @@ public class Main
                 System.out.println(state.getAction());
                 state.printPuzzle();
             }
-            System.out.printf("Solved in %d steps, expanded %d nodes\n\n", solution.size() - 1, solver.getNodes());
+
+            var nodes = solver.getNodes();
+            System.out.printf("Solved in %d steps, expanded %d nodes\n\n", solution.size() - 1, nodes);
+            totalNodes += nodes;
         }
 
         double totalTime = 0;
@@ -49,6 +53,6 @@ public class Main
             totalTime += times[i];
         }
 
-        System.out.printf("Took %f ms in total\n", totalTime);
+        System.out.printf("Took %f ms in total, expanded %d nodes in total\n", totalTime, totalNodes);
     }
 }

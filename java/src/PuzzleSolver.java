@@ -47,15 +47,6 @@ public class PuzzleSolver
         return Math.abs(row2 - row1) + Math.abs(col2 - col1);
     }
 
-    public void debug(PriorityQueue<Puzzle> frontier) {
-        var clonedFrontier = frontier.toArray(new Puzzle[0]);
-        Arrays.sort(clonedFrontier, Comparator.comparingInt(Puzzle::getFScore));
-        for (var puzzle : clonedFrontier) {
-            System.out.print(puzzle.getFScore() + " ");
-        }
-        System.out.println();
-    }
-
     public List<Puzzle> findSolution(Puzzle initialState) {
         var visited = new HashSet<String>();
         var frontier = new PriorityQueue<>(Comparator.comparingInt(Puzzle::getFScore));
@@ -97,7 +88,7 @@ public class PuzzleSolver
     }
 
     public Puzzle generateRandomSolvable() {
-        var moves = randRange(30, 50);
+        var moves = randRange(100, 150);
 
         var currentState = goalState;
         for (var i = 0; i < moves; i++) {

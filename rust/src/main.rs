@@ -49,7 +49,7 @@ fn read_puzzles(file: File) -> Vec<AnyPuzzle> {
 
 fn run_puzzle<const N: usize>(puzzle: Puzzle<N>, times: &mut Vec<f64>) -> u32 {
     let start = Instant::now();
-    let (solution, nodes) = solver::find_path(puzzle);
+    let (solution, nodes) = solver::find_path_arena(puzzle);
     let elapsed = start.elapsed();
 
     times.push((elapsed.as_micros() as f64) / 1000f64);

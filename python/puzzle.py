@@ -143,7 +143,7 @@ def reconstruct_path(curr: Puzzle):
 
 def find_path(initial: Puzzle):
     visited = {}
-    frontier = [initial, initial, initial]
+    frontier = [initial]
 
     goal = create_goal(len(initial.tiles))
 
@@ -186,7 +186,12 @@ def read_puzzles(s: str) -> list[Puzzle]:
 
 def main():
     if len(sys.argv) >= 2:
-        with open(sys.argv[1], "r") as file:
+        try:
+            file = open(sys.argv[1], "r")
+        except OSError:
+            print("Failed to read input file " + sys.argv[1])
+            sys.exit(1)
+        with file:
             file_contents = file.read()
             puzzles = read_puzzles(file_contents)
 

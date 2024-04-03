@@ -557,7 +557,7 @@ int main(int argc, char** argv) {
     char* file_path = argv[1];
     FILE* input_file = fopen(file_path, "r");
     if (input_file == NULL) {
-        printf("Failed to open input file %s\n", file_path);
+        printf("Failed to read input file %s\n", file_path);
         exit(1);
     }
 

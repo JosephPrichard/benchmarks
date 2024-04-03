@@ -2,12 +2,17 @@ open Puzzle_solver
 
 (* Solving the 8puzzle *)
 let run_solutions tiles =
-  List.map
-    (fun tiles ->
+  List.mapi
+    (fun i tiles ->
       let s = Unix.gettimeofday () *. 1000.0 in
       let solution, nodes = Solver.solve tiles in
       let f = Unix.gettimeofday () *. 1000.0 in
-      (solution, nodes, f -. s))
+      
+      Printf.printf "Solution for puzzle %d\n" (i + 1);
+      List.iter (Puzzle.print_puzzle "\n") solution;
+      Printf.printf "Solved in %d steps, exploring %d nodes\n\n" (List.length solution - 1) nodes;
+
+      (nodes, f -. s))
     tiles
 
 let () =
@@ -21,18 +26,15 @@ let () =
     let solutions = run_solutions tiles in
 
     List.iteri
-      (fun i (path, nodes, _) ->
-        Printf.printf "Solution for puzzle %d\n" (i + 1);
-        List.iter (Puzzle.print_puzzle "\n") path;
-        Printf.printf "Solved in %d steps, exploring %d nodes\n\n" (List.length path - 1) nodes)
+      (fun i (_, time) -> Printf.printf "Puzzle %d took %f ms\n" (i + 1) time)
       solutions;
 
-    List.iteri
-      (fun i (_, _, time) -> Printf.printf "Puzzle %d took %f ms\n" (i + 1) time)
-      solutions;
-
-    let total_time =
-      List.fold_left (fun acc (_, _, time) -> acc +. time) 0.0 solutions
+    let (total_nodes, total_time) =
+      List.fold_left 
+        (fun (total_nodes, total_time) (nodes, time) -> (total_nodes + nodes, total_time +. time)) 
+        (0, 0.0) 
+        solutions
     in
-    Printf.printf "Took %f ms in total\n" total_time;
+
+    Printf.printf "Took %f ms in total, expanded %d nodes in total" total_time total_nodes;
     ()

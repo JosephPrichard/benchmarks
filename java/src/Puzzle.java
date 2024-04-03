@@ -19,8 +19,8 @@ import java.util.function.Consumer;
  */
 public class Puzzle
 {
-    private final int[][] DIRECTIONS = {{0, -1}, {0, 1}, {1, 0}, {-1, 0}};
-    private final String[] ACTIONS = {"Left", "Right", "Down", "Up"};
+    private static final int[][] DIRECTIONS = {{0, -1}, {0, 1}, {1, 0}, {-1, 0}};
+    private static final String[] ACTIONS = {"Left", "Right", "Down", "Up"};
 
     private Puzzle parent = null;
     private final int[] puzzle;

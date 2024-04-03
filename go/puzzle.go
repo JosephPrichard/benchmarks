@@ -253,7 +253,7 @@ func FindPath(initial Puzzle) ([]Puzzle, int) {
 func ReadPuzzles(path string) []Puzzle {
 	contents, err := os.ReadFile(path)
 	if err != nil {
-		fmt.Println("Failed to read input file")
+		fmt.Printf("Failed to read input file %s\n", path)
 		os.Exit(1)
 	}
 
@@ -297,6 +297,7 @@ func main() {
 	}
 	filePath := os.Args[1]
 
+	var totalNodes int
 	var times []float64
 
 	puzzles := ReadPuzzles(filePath)
@@ -315,13 +316,30 @@ func main() {
 			steps += 1
 		}
 		fmt.Printf("Solved in %d steps, expanded %d nodes\n\n", steps-1, nodes)
+		totalNodes += nodes
+	}
+
+	file, err := os.OpenFile("bench-results.txt", os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
+	if err != nil {
+		fmt.Printf("Failed to read the results file")
+		os.Exit(1)
 	}
 
 	var totalTime float64
 	for i, t := range times {
 		fmt.Printf("Puzzle %d took %f ms\n", i+1, t)
+		_, err := file.WriteString(fmt.Sprintf("%d %f\n", i+1, t))
+		if err != nil {
+			fmt.Printf("Failed to write to output file")
+			os.Exit(1)
+		}
 		totalTime += t
 	}
 
-	fmt.Printf("Total time in ms: %f\n", totalTime)
+	_, err = file.WriteString(fmt.Sprintf("Total %f", totalTime))
+	if err != nil {
+		fmt.Printf("Failed to write to output file")
+		os.Exit(1)
+	}
+	fmt.Printf("Took %f ms in total, expanded %d nodes in total\n", totalTime, totalNodes)
 }
