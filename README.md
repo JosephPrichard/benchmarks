@@ -28,8 +28,49 @@ A 4x4 like so
 
 A legal puzzle input must contain a 0 representing the empty space, a space between each column, and a newline between rows. Nonzero tiles can be any integers but the program isn't guaranteed to find the shortest path (or any path) nonconventional puzzles. Generally nonzero tiles for a legal puzzle are numbers 1:(N*N-1). N being the dimension of the puzzle. An 8puzzle would contain integers 1:8 and a 15puzzle integers 1:15 in any order.
 
-If the solver cannot find a solution - it will run until it exhausts all possible states! I'm working on implementing nonsolvable state detection for puzzles of any size.
+# Usage
+
+Build the programs using the Makefile.
+
+```shell
+$ make
+```
+
+Run the benchmarks using the `run-bench.sh` script.
+
+```shell
+$ ./run-bench.sh 8puzzles-small.txt
+```
+
+Generate a graph using `./run-graph.sh`.
+
+```shell
+$ ./run-graph.sh
+```
+
+Additionally, you can generate new puzzle inputs using the `./run-generate.sh` script. This is reccomended over making your inputs by hand.
+
+```shell
+$ ./run-graph.sh
+```
+
 
 # Results
 
-Working on a graph that can show the different results for each language.
+The following results are for the "8puzzles-small.txt" file:
+
+| Language | Time (ms)      |
+|-----------------------|------------------|
+| c                     | 274.703          |
+| cpp                   | 240.708          |
+| csharp                | 494.7044 |
+| go                    | 390.499          |
+| java                  | 353.194 |
+| node                  | 952.122 |
+| ocaml                 | 1884.432     |
+| py                    | 10897.696 |
+| rust                  | 125.754 |
+
+![alt text](/graph.png)
+
+

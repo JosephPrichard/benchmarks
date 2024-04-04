@@ -109,12 +109,13 @@ let manhattan_distance pos1 pos2 =
 let calc_heurstic tiles =
   let size = size_of_tiles tiles in
   let reduce_heuristic (sum_h, i) tile =
-    (* Position of the tile on tiles *)
-    let tile_pos = pos_of_index i size in
-    (* Position of the tile on goal_tiles - same value as the tile itself *)
-    let goal_pos = pos_of_index tile size in
-    let md = manhattan_distance tile_pos goal_pos in
-    (sum_h + md, i + 1)
+    if tile <> 0 then
+      let tile_pos = pos_of_index i size in
+      let goal_pos = pos_of_index tile size in
+      let dist = manhattan_distance tile_pos goal_pos in
+      (sum_h + dist, i + 1)
+    else
+      (sum_h, i + 1)
   in
   fst (Array.fold_left reduce_heuristic (0, 0) tiles)
 

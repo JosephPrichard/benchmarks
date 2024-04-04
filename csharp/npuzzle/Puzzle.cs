@@ -70,7 +70,6 @@ namespace npuzzle
                 }
             }
 
-            states.Add(OfList(currPuzzle));
             return states;
         }
 

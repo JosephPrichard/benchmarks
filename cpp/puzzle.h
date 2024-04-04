@@ -41,9 +41,15 @@ class Puzzle {
 public:
     static constexpr std::size_t SIZE = N * N;
 
-    explicit Puzzle(const std::array<Tile, SIZE> tiles) : tiles(tiles) {};
-
     Puzzle() : tiles(std::array<Tile, SIZE>{0}) {};
+
+    explicit Puzzle(const std::array<Tile, SIZE> tiles) : tiles(tiles) {};
+   
+    explicit Puzzle(std::vector<Tile>& tiles_vec) {
+        for (int i = 0; i < SIZE; i++) {
+            tiles[i] = tiles_vec[i];
+        }
+    };
 
     Puzzle(Puzzle<N> const& other) {
         this->tiles = other.tiles;
@@ -88,15 +94,18 @@ public:
     int heuristic() {
         int h = 0;
         for (int i = 0; i < SIZE; i++) {
-            auto pos1 = pos_of_index(this->get_tile(i));
-            auto row1 = std::get<0>(pos1);
-            auto col1 = std::get<1>(pos1);
+            Tile tile = this->get_tile(i);
+            if (tile != 0) {
+                auto pos1 = pos_of_index(tile);
+                auto row1 = std::get<0>(pos1);
+                auto col1 = std::get<1>(pos1);
 
-            auto pos2 = pos_of_index(i);
-            auto row2 = std::get<0>(pos2);
-            auto col2 = std::get<1>(pos2);
+                auto pos2 = pos_of_index(i);
+                auto row2 = std::get<0>(pos2);
+                auto col2 = std::get<1>(pos2);
 
-            h += abs(row2 - row1) + abs(col2 - col1);
+                h += abs(row2 - row1) + abs(col2 - col1);
+            }
         }
         return h;
     }
@@ -187,12 +196,14 @@ public:
                  direction{Position{0, 1}, RIGHT}};
 
             auto zero_pos = puzzle->find_zero();
+
             for (auto& direction: DIRECTIONS) {
                 auto new_pos = zero_pos + std::get<0>(direction);
                 if (in_bounds(new_pos)) {
-                    auto neighbor = arena.alloc(puzzle->make_neighbor(new_pos, zero_pos, std::get<1>(direction)));
-                    auto is_visited = visited.count(neighbor->hash_tiles()) > 0;
-                    if (!is_visited) {
+                    auto next_puzzle = puzzle->make_neighbor(new_pos, zero_pos, std::get<1>(direction));
+                    auto neighbor = arena.alloc(next_puzzle);
+
+                    if (visited.count(neighbor->hash_tiles()) <= 0) {
                         frontier.push(neighbor);
                     }
                 }
@@ -240,7 +251,7 @@ std::ostream& operator<<(std::ostream& os, Action a) {
             os << "Up" << std::endl;
             break;
         default:
-            os << "None" << std::endl;
+            os << "Start" << std::endl;
             break;
     }
     return os;
@@ -250,11 +261,11 @@ template<std::size_t N>
 std::ostream& operator<<(std::ostream& os, const Puzzle<N>& puzzle) {
     os << puzzle.get_action();
     for (int i = 0; i < Puzzle<N>::SIZE; i++) {
-        auto t = (int) puzzle.get_tile(i);
-        if (t == 0) {
+        auto tile = (int) puzzle.get_tile(i);
+        if (tile == 0) {
             os << " ";
         } else {
-            os << t;
+            os << tile;
         }
         if ((i + 1) % N == 0) {
             os << std::endl;

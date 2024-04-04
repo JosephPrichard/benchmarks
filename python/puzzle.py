@@ -70,9 +70,11 @@ class Puzzle:
     def heuristic(self) -> int:
         h = 0
         for i in range(0, len(self.tiles)):
-            row1, col1 = pos_of_index(i, self.dim)
-            row2, col2 = pos_of_index(self.tiles[i], self.dim)
-            h += abs(row2 - row1) + abs(col2 - col1)
+            tile = self.tiles[i]
+            if tile != 0:
+                row1, col1 = pos_of_index(i, self.dim)
+                row2, col2 = pos_of_index(self.tiles[i], self.dim)
+                h += abs(row2 - row1) + abs(col2 - col1)
         return h
 
     def find_zero(self) -> Position:
@@ -165,6 +167,7 @@ def find_path(initial: Puzzle):
 
     return [], nodes
 
+
 def read_puzzles(s: str) -> list[Puzzle]:
     puzzles = []
     curr_tiles = []
@@ -184,40 +187,52 @@ def read_puzzles(s: str) -> list[Puzzle]:
     return puzzles
 
 
-def main():
-    if len(sys.argv) >= 2:
-        try:
-            file = open(sys.argv[1], "r")
-        except OSError:
-            print("Failed to read input file " + sys.argv[1])
-            sys.exit(1)
-        with file:
-            file_contents = file.read()
-            puzzles = read_puzzles(file_contents)
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print("Need at least 1 program argument")
+        exit(1)
 
-            times = []
+    with open(sys.argv[1], "r") as file:
+        file_contents = file.read()
+        puzzles = read_puzzles(file_contents)
 
-            print(f"Starting for {len(puzzles)} puzzle(s)...\n")
-            for puzzle in puzzles:
-                start = time.perf_counter()
+        if len(sys.argv) >= 3:
+            outb_file = open(sys.argv[2], "w")
+        if len(sys.argv) >= 4:
+            out_file = open(sys.argv[3], "w")
 
-                solution, nodes = find_path(puzzle)
+        times = []
 
-                end = time.perf_counter()
-                times.append((end - start) * 1000.0)
+        print(f"Starting for {len(puzzles)} puzzle(s)...\n")
+        for puzzle in puzzles:
+            start = time.perf_counter()
 
-                for p in solution:
-                    p.print()
-                print(f"Solved in {len(solution) - 1} steps, explored {nodes} nodes\n")
+            solution, nodes = find_path(puzzle)
 
-            total = 0
-            for i in range(0, len(times)):
-                print(f"Puzzle {i + 1} took {times[i]} ms")
-                total += times[i]
-            print(f"Took {total} ms in total")
+            end = time.perf_counter()
+            times.append((end - start) * 1000.0)
 
-    else:
-        print("Needs at least one program argument as the input file")
+            for p in solution:
+                p.print()
 
+            if out_file is not None:
+                out_file.write(f"{len(solution) - 1} steps\n")
+            print(f"Solved in {len(solution) - 1} steps, explored {nodes} nodes\n")
 
-main()
+        total = 0
+        for i in range(0, len(times)):
+            print(f"Puzzle {i + 1} took {times[i]} ms")
+            total += times[i]
+
+            if outb_file is not None:
+                outb_file.write(f"{i + 1}, {times[i]}\n")
+
+        if outb_file is not None:
+            outb_file.write(f"total, {total}\n")
+        print(f"Took {total} ms in total")
+
+        if out_file is not None:
+            out_file.close()
+        if outb_file is not None:
+            outb_file.close()
+

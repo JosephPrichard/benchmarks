@@ -45,12 +45,15 @@ rust/target/*
 *.exe
 *.js
 
+out-*.txt
+
 *.jar
 
 csharp/npuzzle/.vs
 csharp/npuzzle/bin
 csharp/npuzzle/obj
+csharp/npuzzle/publish
 
 nodejs/node_modules
 
-*/bench-results.txt
+output

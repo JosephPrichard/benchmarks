@@ -99,9 +99,12 @@ impl<const N: usize> Puzzle<N> {
     pub fn heuristic(&self) -> i32 {
         let mut h = 0i32;
         for i in 0..self.tiles.len() {
-            let pos1 = Position::of_index(i, Self::DIM);
-            let pos2 = Position::of_index(self.tiles[i] as usize, Self::DIM);
-            h += (pos2.row - pos1.row).abs() + (pos2.col - pos1.col).abs()
+            let t = self.tiles[i] as usize;
+            if t != 0 {
+                let pos1 = Position::of_index(i, Self::DIM);
+                let pos2 = Position::of_index(t, Self::DIM);
+                h += (pos2.row - pos1.row).abs() + (pos2.col - pos1.col).abs()
+            }
         }
         h
     }
@@ -136,7 +139,11 @@ impl<const N: usize> fmt::Display for Puzzle<N> {
         let action = if self.action.is_empty() { "Start" } else { self.action };
         writeln!(f, "{}", action)?;
         for i in 0..self.tiles.len() {
-            write!(f, "{} ", self.tiles[i])?;
+            if self.tiles[i] != 0 {
+                write!(f, "{} ", self.tiles[i])?;
+            } else {
+                write!(f, "  ")?;
+            }
             if (i + 1) % (Self::DIM as usize) == 0 {
                 writeln!(f)?;
             }

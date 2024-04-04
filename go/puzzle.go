@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"container/heap"
 	"fmt"
 	"math"
@@ -67,30 +68,32 @@ func IntSqrt(x int) int {
 	return int(math.Sqrt(float64(x)))
 }
 
-func (puzzle Puzzle) PrintPuzzle() {
+func (puzzle Puzzle) PrintPuzzle() string {
+	var sb strings.Builder
 	switch puzzle.action {
 	case Down:
-		fmt.Println("Down")
+		sb.WriteString("Down\n")
 	case Up:
-		fmt.Println("Up")
+		sb.WriteString("Up\n")
 	case Left:
-		fmt.Println("Left")
+		sb.WriteString("Left\n")
 	case Right:
-		fmt.Println("Right")
+		sb.WriteString("Right\n")
 	default:
-		fmt.Println("Start")
+		sb.WriteString("Start\n")
 	}
 	dim := IntSqrt(len(puzzle.tiles))
 	for i, tile := range puzzle.tiles {
 		if tile == 0 {
-			fmt.Print("  ")
+			sb.WriteString("  ")
 		} else {
-			fmt.Print(tile, " ")
+			sb.WriteString(fmt.Sprintf("%d ", tile))
 		}
 		if (i+1)%dim == 0 {
-			fmt.Println()
+			sb.WriteString("\n")
 		}
 	}
+	return sb.String()
 }
 
 func Equals(tiles []Tile, other []Tile) bool {
@@ -114,7 +117,9 @@ func (puzzle Puzzle) Heuristic() int {
 	for i, tile := range puzzle.tiles {
 		pos1 := IndexToPos(i, puzzle.dim)
 		pos2 := IndexToPos(int(tile), puzzle.dim)
-		h += abs(pos2.row-pos1.row) + abs(pos2.col-pos1.col)
+		if tile != 0 {
+			h += abs(pos2.row-pos1.row) + abs(pos2.col-pos1.col)
+		}
 	}
 	return h
 }
@@ -148,7 +153,7 @@ var directions = []Direction{
 	{pos: Position{row: -1, col: 0}, action: Up},
 }
 
-func (puzzle Puzzle) OnNeighbors(onNeighbor func(puzzle Puzzle)) {
+func (puzzle Puzzle) OnNeighbors(onNeighbor func(puzzle *Puzzle)) {
 	zeroPos := puzzle.FindZero()
 	for _, direction := range directions {
 		newPos := zeroPos.Add(direction.pos)
@@ -166,12 +171,12 @@ func (puzzle Puzzle) OnNeighbors(onNeighbor func(puzzle Puzzle)) {
 		nextPuzzle.f = nextPuzzle.g + nextPuzzle.Heuristic()
 		nextPuzzle.action = direction.action
 
-		onNeighbor(nextPuzzle)
+		onNeighbor(&nextPuzzle)
 	}
 }
 
 type PuzzleHeap struct {
-	array []Puzzle
+	array []*Puzzle
 }
 
 func (h PuzzleHeap) Len() int {
@@ -187,7 +192,7 @@ func (h PuzzleHeap) Swap(i, j int) {
 }
 
 func (h *PuzzleHeap) Push(x interface{}) {
-	h.array = append(h.array, x.(Puzzle))
+	h.array = append(h.array, x.(*Puzzle))
 }
 
 func (h PuzzleHeap) lastIndex() int {
@@ -198,15 +203,6 @@ func (h *PuzzleHeap) Pop() interface{} {
 	last := h.array[h.lastIndex()]
 	h.array = h.array[:h.lastIndex()]
 	return last
-}
-
-func (h *PuzzleHeap) Debug() {
-	clonedHeap := PuzzleHeap{array: slices.Clone(h.array)}
-	for clonedHeap.Len() > 0 {
-		puzzle := heap.Pop(&clonedHeap).(Puzzle)
-		fmt.Print(puzzle.f, " ")
-	}
-	fmt.Println()
 }
 
 func ReconstructPath(puzzle *Puzzle) []Puzzle {
@@ -222,24 +218,24 @@ func ReconstructPath(puzzle *Puzzle) []Puzzle {
 func FindPath(initial Puzzle) ([]Puzzle, int) {
 	visited := make(map[string]bool)
 
-	frontier := PuzzleHeap{array: make([]Puzzle, 0)}
-	frontier.Push(initial)
+	frontier := PuzzleHeap{array: make([]*Puzzle, 0)}
+	frontier.Push(&initial)
 	heap.Init(&frontier)
 
 	goal := NewGoal(len(initial.tiles))
 
 	nodes := 0
 	for frontier.Len() > 0 {
-		puzzle := heap.Pop(&frontier).(Puzzle)
+		puzzle := heap.Pop(&frontier).(*Puzzle)
 		nodes += 1
 
 		visited[puzzle.Hash()] = true
 
 		if Equals(puzzle.tiles, goal) {
-			return ReconstructPath(&puzzle), nodes
+			return ReconstructPath(puzzle), nodes
 		}
 
-		puzzle.OnNeighbors(func(puzzle Puzzle) {
+		puzzle.OnNeighbors(func(puzzle *Puzzle) {
 			_, exists := visited[puzzle.Hash()]
 			if !exists {
 				heap.Push(&frontier, puzzle)
@@ -291,17 +287,46 @@ func ReadPuzzles(path string) []Puzzle {
 }
 
 func main() {
-	if len(os.Args) <= 1 {
+	if len(os.Args) < 2 {
 		fmt.Println("Needs at least argument for input file")
 		os.Exit(1)
 	}
 	filePath := os.Args[1]
 
+	var outbWriter *bufio.Writer
+	if len(os.Args) >= 3 {
+		file, err := os.OpenFile(os.Args[2], os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
+		if err != nil {
+			fmt.Printf("Failed to open the bench file")
+			os.Exit(1)
+		}
+		outbWriter = bufio.NewWriter(file)
+		defer func() {
+			outbWriter.Flush()
+			file.Close()
+		}()
+	}
+
+	var outWriter *bufio.Writer
+	if len(os.Args) >= 4 {
+		file, err := os.OpenFile(os.Args[3], os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
+		if err != nil {
+			fmt.Printf("Failed to open the out file")
+			os.Exit(1)
+		}
+		outWriter = bufio.NewWriter(file)
+		defer func() {
+			outWriter.Flush()
+			file.Close()
+		}()
+	}
+
 	var totalNodes int
 	var times []float64
 
 	puzzles := ReadPuzzles(filePath)
-	fmt.Printf("Running solution for %d puzzle input(s)...\n\n", len(puzzles))
+
+	fmt.Printf("Running for %d puzzle input(s)...\n\n", len(puzzles))
 	for i, puzzle := range puzzles {
 		start := time.Now()
 		solution, nodes := FindPath(puzzle)
@@ -310,33 +335,28 @@ func main() {
 		times = append(times, float64(duration)/1000.0)
 
 		fmt.Printf("Solution for puzzle %d\n", i+1)
-		steps := 0
 		for _, puzzle := range solution {
-			puzzle.PrintPuzzle()
-			steps += 1
+			fmt.Print(puzzle.PrintPuzzle())
 		}
-		fmt.Printf("Solved in %d steps, expanded %d nodes\n\n", steps-1, nodes)
+
+		outWriter.WriteString(fmt.Sprintf("%d steps\n", len(solution)-1))
+		fmt.Printf("Solved in %d steps, expanded %d nodes\n\n", len(solution)-1, nodes)
 		totalNodes += nodes
 	}
 
-	file, err := os.OpenFile("bench-results.txt", os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
-	if err != nil {
-		fmt.Printf("Failed to read the results file")
-		os.Exit(1)
-	}
-
 	var totalTime float64
-	for i, t := range times {
-		fmt.Printf("Puzzle %d took %f ms\n", i+1, t)
-		_, err := file.WriteString(fmt.Sprintf("%d %f\n", i+1, t))
+	for i, time := range times {
+		fmt.Printf("Puzzle %d took %f ms\n", i+1, time)
+		totalTime += time
+
+		_, err := outbWriter.WriteString(fmt.Sprintf("%d, %f\n", i+1, time))
 		if err != nil {
 			fmt.Printf("Failed to write to output file")
 			os.Exit(1)
 		}
-		totalTime += t
 	}
 
-	_, err = file.WriteString(fmt.Sprintf("Total %f", totalTime))
+	_, err := outbWriter.WriteString(fmt.Sprintf("total, %f", totalTime))
 	if err != nil {
 		fmt.Printf("Failed to write to output file")
 		os.Exit(1)

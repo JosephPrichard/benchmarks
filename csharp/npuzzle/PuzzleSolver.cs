@@ -28,11 +28,14 @@ namespace npuzzle
             var h = 0;
             for (var i = 0; i < puzzle.Length; i++)
             {
-                var row1 = i / dimension;
-                var col1 = i % dimension;
-                var row2 = puzzle[i] / dimension;
-                var col2 = puzzle[i] % dimension;
-                h += ManhattanDistance(row1, col1, row2, col2);
+                var tile = puzzle[i];
+                if (tile != 0) {
+                    var row1 = i / dimension;
+                    var col1 = i % dimension;
+                    var row2 = tile / dimension;
+                    var col2 = tile % dimension;
+                    h += ManhattanDistance(row1, col1, row2, col2);
+                }
             }
 
             return h;

@@ -1,50 +1,43 @@
 CFLAGS=-O3
+SHELL=bash
 
-all: c-build cpp-build go-build rust-build-release node-build ocaml-build csharp-build java-build
+all: c-build cpp-build go-build rust-build-release node-build csharp-build java-build ocaml-build
 
-c-build: c/
-	cd c && \
-	gcc $(CFLAGS) puzzle.c -o puzzle.exe
+c-build: c
+	gcc $(CFLAGS) c/puzzle.c -o c/puzzle.exe
 
-cpp-build: cpp/
-	cd cpp && \
-	g++ $(CFLAGS) main.cpp -o puzzle.exe
+cpp-build: cpp
+	g++ $(CFLAGS) -std=c++20 cpp/main.cpp -o cpp/puzzle.exe
 
-go-build: go/
+go-build: go
 	cd go && \
 	go build
 
-node-build: nodejs/
+node-build: nodejs
 	cd nodejs && \
 	npm run build
 
-rust-build-debug: rust/src/
+rust-build-debug: rust/src
 	cd rust && \
 	cargo build
 
-rust-build-release: rust/src/
+rust-build-release: rust/src
 	cd rust && \
 	cargo build --release
 
-ocaml-build: ocaml/
+ocaml-build: ocaml
 	cd ocaml && \
-	eval $(opam env) && \
-	dune build
+	opam install psq && \
+	opam exec dune build
 
-csharp-build: csharp/
+csharp-build: csharp
 	cd csharp/npuzzle && \
-	dotnet build -c release
+	dotnet publish -c Release -o publish -p:PublishReadyToRun=true -p:PublishSingleFile=true -p:PublishTrimmed=true --self-contained true -p:IncludeNativeLibrariesForSelfExtract=true
 
-java-build: java/
+java-build: java
 	cd java && \
 	javac -d out/ src/*.java && \
 	jar cvf out/puzzle.jar -C out/ .
 
 clean:
-	rm -rf c/*.exe
-	rm -rf cpp/*.exe
-	rm -rf rust/target
-	rm -rf go/puzzle.exe
-	rm -rf java/out/puzzle.jar
-	rm -rf java/out/src
-	rm -rf nodejs/solver.js
+	rm -rf *.exe *.jar

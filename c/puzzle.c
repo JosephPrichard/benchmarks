@@ -378,33 +378,37 @@ int move_board(board_t brd_in, board_t brd_out, int row_offset, int col_offset, 
 int heuristic(const board_t brd, int rows) {
     int h = 0;
     for (int i = 0; i < rows * rows; i++) {
-        int row1 = i / rows;
-        int col1 = i % rows;
-        int row2 = brd[i] / rows;
-        int col2 = brd[i] % rows;
-        int manhattan_distance = abs(row2 - row1) + abs(col2 - col1);
-        h += manhattan_distance;
+        int tile = brd[i];
+        if (tile != 0) {
+            int row1 = i / rows;
+            int col1 = i % rows;
+            int row2 = tile / rows;
+            int col2 = tile % rows;
+            int manhattan_distance = abs(row2 - row1) + abs(col2 - col1);
+            h += manhattan_distance;
+       }
     }
     return h;
 }
 
-void print_board(const board_t brd, int rows) {
+void print_board(const action_t* action, int rows, FILE* file) {
+    fprintf(file, "%s\n", MOVE_STRINGS[action->move]);
     for (int i = 0; i < rows * rows; i++) {
-        if (brd[i] != 0) {
-            printf("%d ", brd[i]);
+        if (action->board[i] != 0) {
+            fprintf(file, "%d ", action->board[i]);
         } else {
-            printf("  ");
+            fprintf(file, "  ");
         }
         if ((i + 1) % rows == 0) {
-            printf("\n");
+            fprintf(file, "\n");
         }
     }
 }
 
 void print_solution(result_t result, int rows) {
     for (int i = result.steps - 1; i >= 0; i--) {
-        printf("%s\n", MOVE_STRINGS[result.solution[i].move]);
-        print_board(result.solution[i].board, rows);
+        action_t* a = &result.solution[i];
+        print_board(a, rows, stdout);
     }
     printf("Solved in %d steps, explored %d nodes \n", result.steps - 1, result.nodes);
 }
@@ -549,7 +553,7 @@ int parse_inputs(board_input_t inputs[MAX_RUNS], FILE* input_file) {
 }
 
 int main(int argc, char** argv) {
-    if (argc <= 1) {
+    if (argc < 2) {
         printf("Need at least 1 program argument\n");
         return 1;
     }
@@ -559,6 +563,26 @@ int main(int argc, char** argv) {
     if (input_file == NULL) {
         printf("Failed to read input file %s\n", file_path);
         exit(1);
+    }
+
+    FILE* outb_file = NULL;
+    if (argc >= 3) {
+        char* file_path = argv[2];
+        outb_file = fopen(file_path, "wb");
+        if (outb_file == NULL) {
+            printf("Failed to open the benchmark file %s\n", file_path);
+            exit(1);
+        }
+    }
+
+    FILE* out_file = NULL;
+    if (argc >= 4) {
+        char* file_path = argv[3];
+        out_file = fopen(file_path, "wb");
+        if (out_file == NULL) {
+            printf("Failed to open the out file %s\n", file_path);
+            exit(1);
+        }
     }
 
     board_input_t inputs[MAX_RUNS] = {0};
@@ -583,14 +607,30 @@ int main(int argc, char** argv) {
     for (int i = 0; i < count; i++) {
         printf("\nSolution for puzzle %d\n", i + 1);
         print_solution(results[i], inputs[i].rows);
+        fprintf(out_file, "%d steps\n", results[i].steps - 1);
     }
 
     double total_time = 0;
     for (int i = 0; i < count; i++) {
         printf("\nPuzzle %d took %f ms", i + 1, results[i].time);
         total_time += results[i].time;
+
+        if (outb_file != NULL) {
+            fprintf(outb_file, "%d, %f\n", i + 1, results[i].time);
+        }
     }
     printf("\nTook %f ms in total\n", total_time);
+    if (outb_file != NULL) {
+        fprintf(outb_file, "total, %f\n", total_time);
+    }
+
+    fclose(input_file);
+    if (out_file != NULL) {
+        fclose(out_file);
+    }
+     if (outb_file != NULL) {
+        fclose(outb_file);
+    }
 
     return 0;
 }

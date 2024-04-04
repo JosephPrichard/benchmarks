@@ -34,11 +34,14 @@ public class PuzzleSolver
         var dimension = puzzleState.getDimension();
         var h = 0;
         for (var i = 0; i < puzzle.length; i++) {
-            var row1 = i / dimension;
-            var col1 = i % dimension;
-            var row2 = puzzle[i] / dimension;
-            var col2 = puzzle[i] % dimension;
-            h += manhattanDistance(row1, col1, row2, col2);
+            int tile = puzzle[i];
+            if (tile != 0) {
+                var row1 = i / dimension;
+                var col1 = i % dimension;
+                var row2 = tile / dimension;
+                var col2 = tile % dimension;
+                h += manhattanDistance(row1, col1, row2, col2);
+           }
         }
         return h;
     }

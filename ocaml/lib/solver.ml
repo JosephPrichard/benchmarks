@@ -1,5 +1,4 @@
 open Puzzle
-
 module OrderedPuzzles = Psq.Make (String) (Puzzle)
 module VisitedSet = Map.Make (String)
 
@@ -27,14 +26,16 @@ let rec search frontier visited goal_tiles nodes =
   | Some (key, puzzle) ->
     let frontier = OrderedPuzzles.remove key frontier in
     (* A puzzle must be removed from the frontier and added to visited set - we don't want to search it again *)
-    let visited = VisitedSet.add (Puzzle.hash_of_tiles puzzle.tiles) () visited in
+    let visited =
+      VisitedSet.add (Puzzle.hash_of_tiles puzzle.tiles) () visited
+    in
     (* Check if the puzzle matches the goal solution *)
     if puzzle.tiles = goal_tiles then
       (reconstruct_path puzzle [], nodes)
     else
       let neighbors = next_puzzles puzzle in
       let frontier = add_neighbors neighbors frontier visited in
-      search frontier visited goal_tiles (nodes+1)
+      search frontier visited goal_tiles (nodes + 1)
   | None -> ([], nodes)
 
 let solve tiles =

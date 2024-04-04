@@ -60,6 +60,8 @@ public class Puzzle
                 }
             }
         }
+        
+        fileReader.close();
 
         states.add(ofList(currPuzzle));
         return states;
@@ -167,7 +169,7 @@ public class Puzzle
         for (var i = 0; i < puzzle.length; i++) {
             var tile = puzzle[i];
             if (tile == 0) {
-                stream.print(empty  + " ");
+                stream.print(empty + " ");
             } else {
                 stream.print(tile + " ");
             }

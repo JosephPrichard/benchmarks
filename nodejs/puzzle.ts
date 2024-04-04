@@ -60,9 +60,12 @@ class Puzzle {
     heuristic() {
         let h = 0;
         for (let i = 0; i < this.tiles.length; i++) {
-            const pos1 = pos_of_index(i, this.dim);
-            const pos2 = pos_of_index(this.tiles[i], this.dim);
-            h += Math.abs(pos2.row - pos1.row) + Math.abs(pos2.col - pos1.col);
+            const t = this.tiles[i];
+            if (t != 0) {  
+                const pos1 = pos_of_index(i, this.dim);
+                const pos2 = pos_of_index(t, this.dim);
+                h += Math.abs(pos2.row - pos1.row) + Math.abs(pos2.col - pos1.col);
+            }
         }
         return h;
     }
@@ -80,18 +83,20 @@ class Puzzle {
         return this.tiles.join('');
     }
 
-    print() {
-        console.log(this.action.toString());
+    printString() {
+        let s = "";
+        s += this.action.toString() + "\n";
         for (let i = 0; i < this.tiles.length; i++) {
             if (this.tiles[i] === 0) {
-                process.stdout.write("  ");
+                s += "  ";
             } else {
-                process.stdout.write(this.tiles[i] + " ");
+                s += this.tiles[i] + " ";
             }
             if ((i + 1) % this.dim === 0) {
-                console.log();
+                s += "\n";
             }
         }
+        return s
     }
 
     neighbors(callback: (arg0: Puzzle) => void) {
@@ -277,44 +282,62 @@ function read_puzzles(s: string) {
 }
 
 function main() {
-    if (process.argv.length >= 3) {
-        const path = process.argv[2];
-        let fileContents = "";
-        try {
-            fileContents = fs.readFileSync(path, 'utf8');
-        } catch(err) {
-            console.log("Failed to read input file " + path)
+    if (process.argv.length < 3) {
+        console.log("Need at least 1 program argument");
+        process.exit(1);
+    }
+
+    const path = process.argv[2];
+
+    let fileContents = "";
+    try {
+        fileContents = fs.readFileSync(path, "utf8");
+    } catch(err) {
+        console.log("Failed to read input file " + path)
+        process.exit(1);
+    }
+    
+    const puzzles = read_puzzles(fileContents);
+    const times: number[] = [];
+    let out = "";
+
+    console.log(`Running for ${puzzles.length} puzzle(s)...\n`);
+    for (const puzzle of puzzles) {
+        const start = process.hrtime.bigint();
+
+        const {path, nodes} = find_path(puzzle);
+
+        const end = process.hrtime.bigint();
+        times.push(Number(end - start) / 1e6);
+
+        for (const p of path) {
+            console.log(p.printString());
+        }
+        out += `${path.length - 1} steps\n`
+        console.log(`Solved in ${path.length - 1} steps, explored ${nodes} nodes\n`);
+    }
+
+    let outb = "";
+
+    let total = 0;
+    for (let i = 0; i < times.length; i++) {
+        console.log(`Puzzle ${i + 1} took ${times[i]} ms`);
+        total += times[i];
+        outb += `${i + 1}, ${times[i]}\n`;
+    }
+    console.log(`Took ${total} ms in total`);
+    outb += `total, ${total}`;
+
+    const options: fs.WriteFileOptions = { flag: 'w', encoding: 'utf8', mode: 0o666 };
+    const f: fs.NoParamCallback = (err) => {
+        if (err) {
+            console.log(err);
             process.exit(1);
         }
-        
-        const puzzles = read_puzzles(fileContents);
+    };
 
-        const times: number[] = [];
-
-        console.log(`Starting for ${puzzles.length} puzzle(s)...\n`);
-        for (const puzzle of puzzles) {
-            const start = process.hrtime.bigint();
-
-            const {path, nodes} = find_path(puzzle);
-
-            const end = process.hrtime.bigint();
-            times.push(Number(end - start) / 1e6);
-
-            for (const p of path) {
-                p.print();
-            }
-            console.log(`Solved in ${path.length - 1} steps, explored ${nodes} nodes\n`);
-        }
-
-        let total = 0;
-        for (let i = 0; i < times.length; i++) {
-            console.log(`Puzzle ${i + 1} took ${times[i]} ms`);
-            total += times[i];
-        }
-        console.log(`Took ${total} ms in total`);
-    } else {
-        console.log("Needs at least one program argument as the input file");
-    }
+    fs.writeFile(process.argv[3], outb, options, f);
+    fs.writeFile(process.argv[4], out, options, f);
 }
 
 main();
