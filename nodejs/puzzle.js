@@ -1,54 +1,40 @@
-import * as fs from 'fs';
+const fs = require('fs');
 
-interface Position {
-    row: number;
-    col: number;
-};
-
-function index_of_pos(pos: Position, dim: number) {
+function index_of_pos(pos, dim) {
     return pos.row * dim + pos.col;
 }
 
-function pos_of_index(i: number, dim: number): Position {
-    return {row: Math.floor(i / dim), col: i % dim};
+function pos_of_index(i, dim) {
+    return { row: Math.floor(i / dim), col: i % dim };
 }
 
-function in_bounds(pos: Position, dim: number) {
+function in_bounds(pos, dim) {
     return pos.row >= 0 && pos.row < dim && pos.col >= 0 && pos.col < dim;
 }
 
-function add_positions(pos1: Position, pos2: Position): Position {
-    return {row: pos1.row + pos2.row, col: pos1.col + pos2.col};
+function add_positions(pos1, pos2) {
+    return { row: pos1.row + pos2.row, col: pos1.col + pos2.col };
 }
 
 const directions = [
-    {dir: {row: 1, col: 0}, action: "Up"},
-    {dir: {row: -1, col: 0}, action: "Down"},
-    {dir: {row: 0, col: 1}, action: "Left"},
-    {dir: {row: 0, col: -1}, action: "Right"}
+    { dir: { row: 1, col: 0 }, action: "Up" },
+    { dir: { row: -1, col: 0 }, action: "Down" },
+    { dir: { row: 0, col: 1 }, action: "Left" },
+    { dir: { row: 0, col: -1 }, action: "Right" }
 ];
-
-type Tiles = number[];
 
 class Puzzle {
 
-    g: number;
-    f: number;
-    prev: Puzzle | null;
-    tiles: Tiles;
-    action: string;
-    dim: number;
-    
-    constructor(tiles: Tiles) {
+    constructor(tiles) {
         this.g = 0;
         this.f = 0;
         this.prev = null;
         this.tiles = tiles;
-        this.action = "none";
+        this.action = "Start";
         this.dim = Math.floor(Math.sqrt(tiles.length));
     }
 
-    equals(other: Tiles) {
+    equals(other) {
         for (let i = 0; i < this.tiles.length; i++) {
             if (this.tiles[i] !== other[i]) {
                 return false;
@@ -61,7 +47,7 @@ class Puzzle {
         let h = 0;
         for (let i = 0; i < this.tiles.length; i++) {
             const t = this.tiles[i];
-            if (t != 0) {  
+            if (t != 0) {
                 const pos1 = pos_of_index(i, this.dim);
                 const pos2 = pos_of_index(t, this.dim);
                 h += Math.abs(pos2.row - pos1.row) + Math.abs(pos2.col - pos1.col);
@@ -99,11 +85,11 @@ class Puzzle {
         return s
     }
 
-    neighbors(callback: (arg0: Puzzle) => void) {
+    neighbors(callback) {
         const zero_pos = this.find_zero();
         const zero_index = index_of_pos(zero_pos, this.dim);
 
-        for (const {dir, action} of directions) {
+        for (const { dir, action } of directions) {
             const next_pos = add_positions(zero_pos, dir);
             const next_index = index_of_pos(next_pos, this.dim);
 
@@ -127,14 +113,10 @@ class Puzzle {
     }
 }
 
-export type Comparator<E> = (a: E, b: E) => boolean
+class Heap {
 
-class Heap<E>
-{
-    private elements: E[] = [];
-    readonly compare: Comparator<E>;
-
-    constructor(compare: Comparator<E>) {
+    constructor(compare) {
+        this.elements = [];
         this.compare = compare;
     }
 
@@ -146,9 +128,9 @@ class Heap<E>
         return this.elements.length === 0;
     }
 
-    push(e: E) {
+    push(e) {
         this.elements.push(e);
-        this.siftUp(this.elements.length-1); //last element
+        this.siftUp(this.elements.length - 1); //last element
     }
 
     peek() {
@@ -167,60 +149,54 @@ class Heap<E>
         this.elements = [];
     }
 
-    private siftUp(pos: number) {
+    siftUp(pos) {
         let parent = ((pos - 1) / 2) >> 0; //integer division
-        while(parent >= 0) {
-            //if the current position is better than parent
-            if(this.compare(this.elements[pos], this.elements[parent])) {
-                //then current position with parent and move to next
+        while (parent >= 0) {
+            if (this.compare(this.elements[pos], this.elements[parent])) {
                 this.swap(pos, parent);
                 pos = parent;
                 parent = ((pos - 1) / 2) >> 0;
             } else {
-                //otherwise stop
                 parent = -1;
             }
         }
     }
 
-    private siftDown(pos: number) {
+    siftDown(pos) {
         const left = 2 * pos + 1;
         const right = 2 * pos + 2;
-        //stop if the children are out of bounds
-        if(left >= this.elements.length) {
+        if (left >= this.elements.length) {
             return;
         }
-        //find the better child
         const child = (right >= this.elements.length || this.compare(this.elements[left], this.elements[right]))
             ? left : right;
-        //continues to sift down if the child is better than the current position
-        if(this.compare(this.elements[child], this.elements[pos])) {
+        if (this.compare(this.elements[child], this.elements[pos])) {
             this.swap(child, pos);
             this.siftDown(child);
         }
     }
 
-    private move(from: number, to: number) {
+    move(from, to) {
         this.elements[to] = this.elements[from];
     }
 
-    private swap(a: number, b: number) {
+    swap(a, b) {
         let val = this.elements[a];
         this.elements[a] = this.elements[b];
         this.elements[b] = val;
     }
 }
 
-function create_goal(size: number) {
-    const tiles: number[] = [];
+function create_goal(size) {
+    const tiles = [];
     for (let i = 0; i < size; i++) {
         tiles.push(i);
     }
     return tiles;
 }
 
-function reconstruct_path(curr: Puzzle | null) {
-    const path: Puzzle[] = [];
+function reconstruct_path(curr) {
+    const path = [];
     while (curr !== null) {
         path.push(curr);
         curr = curr.prev;
@@ -229,9 +205,9 @@ function reconstruct_path(curr: Puzzle | null) {
     return path;
 }
 
-function find_path(initial: Puzzle) {
-    const visited: {[key:string]: boolean} = {};
-    const frontier = new Heap<Puzzle>((p1: Puzzle, p2: Puzzle) => p1.f < p2.f);
+function find_path(initial) {
+    const visited = {};
+    const frontier = new Heap((p1, p2) => p1.f < p2.f);
     frontier.push(initial);
 
     const goal = create_goal(initial.tiles.length);
@@ -242,12 +218,12 @@ function find_path(initial: Puzzle) {
         nodes++;
 
         if (curr_puzzle.equals(goal)) {
-            return {path: reconstruct_path(curr_puzzle), nodes};
+            return { path: reconstruct_path(curr_puzzle), nodes };
         }
 
         visited[curr_puzzle.hash()] = true;
 
-        const on_neighbor = (neighbor: Puzzle) => {
+        const on_neighbor = (neighbor) => {
             if (!visited[neighbor.hash()]) {
                 frontier.push(neighbor);
             }
@@ -256,12 +232,12 @@ function find_path(initial: Puzzle) {
         curr_puzzle.neighbors(on_neighbor);
     }
 
-    return {path: [], nodes};
+    return { path: [], nodes };
 }
 
-function read_puzzles(s: string) {
-    const puzzles: Puzzle[] = [];
-    let curr_tiles: number[] = [];
+function read_puzzles(s) {
+    const puzzles = [];
+    let curr_tiles = [];
 
     const lines = s.split("\n");
     for (const line of lines) {
@@ -292,52 +268,39 @@ function main() {
     let fileContents = "";
     try {
         fileContents = fs.readFileSync(path, "utf8");
-    } catch(err) {
+    } catch (err) {
         console.log("Failed to read input file " + path)
         process.exit(1);
     }
-    
-    const puzzles = read_puzzles(fileContents);
-    const times: number[] = [];
-    let out = "";
 
-    console.log(`Running for ${puzzles.length} puzzle(s)...\n`);
+    const puzzles = read_puzzles(fileContents);
+    const results = [];
+
     for (const puzzle of puzzles) {
         const start = process.hrtime.bigint();
 
-        const {path, nodes} = find_path(puzzle);
+        const { path, nodes } = find_path(puzzle);
 
         const end = process.hrtime.bigint();
-        times.push(Number(end - start) / 1e6);
+        const time = Number(end - start) / 1e6;
+
+        results.push({time, nodes});
 
         for (const p of path) {
             console.log(p.printString());
         }
-        out += `${path.length - 1} steps\n`
-        console.log(`Solved in ${path.length - 1} steps, explored ${nodes} nodes\n`);
+        console.log(`Solved in ${path.length - 1} steps\n`);
     }
 
-    let outb = "";
-
-    let total = 0;
-    for (let i = 0; i < times.length; i++) {
-        console.log(`Puzzle ${i + 1} took ${times[i]} ms`);
-        total += times[i];
-        outb += `${i + 1}, ${times[i]}\n`;
+    let totalTime = 0;
+    let totalNodes = 0;
+    for (let i = 0; i < results.length; i++) {
+        console.log(`Puzzle ${i + 1}: ${results[i].time} ms, ${results[i].nodes} nodes`);
+        totalTime += results[i].time;
+        totalNodes += results[i].nodes;
     }
-    console.log(`Took ${total} ms in total`);
-    outb += `total, ${total}`;
 
-    const options: fs.WriteFileOptions = { flag: 'w', encoding: 'utf8', mode: 0o666 };
-    const f: fs.NoParamCallback = (err) => {
-        if (err) {
-            console.log(err);
-            process.exit(1);
-        }
-    };
-
-    fs.writeFile(process.argv[3], outb, options, f);
-    fs.writeFile(process.argv[4], out, options, f);
+    console.log(`Total: ${totalTime} ms, ${totalNodes} nodes`);
 }
 
 main();

@@ -5,17 +5,63 @@ if [ -z "$INPUT_FILE" ]; then
     exit 1
 fi
 
-mkdir output
+rows=()
 
-touch output/bench-out-csharp.csv
-touch output/out-csharp.txt
+paths=(
+    "./c/puzzle.exe"
+    "./cpp/puzzle.exe"
+    "./csharp/npuzzle/publish/npuzzle.exe"
+    "./go/puzzle.exe"
+    "./rust/target/release/puzzle.exe"
+    "./ocaml/_build/install/default/bin/puzzleml.exe"
+    "java -cp ./java/out/puzzle.jar src.Main"
+    "node ./nodejs/puzzle.js"
+    "python ./python/puzzle.py"
+)
 
-./c/puzzle.exe $INPUT_FILE ./output/bench-out-c.csv ./output/out-c.txt 
-./cpp/puzzle.exe $INPUT_FILE ./output/bench-out-cpp.csv ./output/out-cpp.txt 
-./csharp/npuzzle/publish/npuzzle.exe $INPUT_FILE ./output/bench-out-csharp.csv ./output/out-csharp.txt 
-./go/puzzle.exe $INPUT_FILE ./output/bench-out-go.csv ./output/out-go.txt
-./rust/target/release/puzzle.exe $INPUT_FILE ./output/bench-out-rust.csv ./output/out-rust.txt 
-./ocaml/_build/install/default/bin/puzzleml.exe $INPUT_FILE ./output/bench-out-ocaml.csv ./output/out-ocaml.txt
-java -cp ./java/out/puzzle.jar src.Main $INPUT_FILE ./output/bench-out-java.csv ./output/out-java.txt 
-node ./nodejs/puzzle.js $INPUT_FILE ./output/bench-out-node.csv ./output/out-node.txt 
-python ./python/puzzle.py $INPUT_FILE ./output/bench-out-py.csv ./output/out-py.txt 
+languages=(
+    "C"
+    "C++"
+    "C#"
+    "Go"
+    "Rust"
+    "OCaml"
+    "Java"
+    "Node.js"
+    "Python"
+)
+
+extensions=(
+    "c"
+    "cpp"
+    "cs"
+    "go"
+    "rs"
+    "ml"
+    "java"
+    "js"
+    "py"
+)
+
+get_row() {
+    local str=$(echo "$1" | tail -n 1)
+    local total=$(echo "$str" | grep -oP '(?<=Total: )\d+\.\d+')
+    local nodes=$(echo "$str" | grep -oP '(?<=, )\d+(?= nodes)')
+    echo "$2, $total, $nodes, $3"
+}
+
+for ((i = 0; i < ${#paths[@]}; i++)); do
+    path="${paths[$i]}"
+    language="${languages[$i]}"
+    extension="${extensions[$i]}"
+
+    result=$(eval "$path" "$INPUT_FILE")
+    echo "$result"
+    row=$(get_row "$result" "$language" "$extension")
+    rows+=("$row")
+done
+
+printf "\nLanguage, Time (ms), Nodes, Extension\n"
+for row in "${rows[@]}"; do
+    echo "$row"
+done

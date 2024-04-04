@@ -1,7 +1,7 @@
 CFLAGS=-O3
 SHELL=bash
 
-all: c-build cpp-build go-build rust-build-release node-build csharp-build java-build ocaml-build
+all: c-build cpp-build go-build rust-build-release csharp-build java-build ocaml-build
 
 c-build: c
 	gcc $(CFLAGS) c/puzzle.c -o c/puzzle.exe
@@ -12,10 +12,6 @@ cpp-build: cpp
 go-build: go
 	cd go && \
 	go build
-
-node-build: nodejs
-	cd nodejs && \
-	npm run build
 
 rust-build-debug: rust/src
 	cd rust && \

@@ -19,32 +19,11 @@ namespace npuzzle
                 Environment.Exit(1);
             }
 
-            StreamWriter? outbWriter = null;
-            if (args.Length >= 2)
-            {
-                var file = new FileInfo(args[1]);
-                 if (!file.Exists) 
-                {
-                    file.Create();
-                }
-                outbWriter = new StreamWriter(file.FullName);
-            }
-
-            StreamWriter? outWriter = null;
-            if (args.Length >= 3)
-            {
-                var file = new FileInfo(args[2]);
-                if (!file.Exists) 
-                {
-                    file.Create();
-                }
-                outWriter = new StreamWriter(file.FullName);
-            }
-
             var states = Puzzle.FromFile(inputFile);
-            Console.WriteLine($"Running for {states.Count} puzzle input(s)...\n");
 
             var times = new double[states.Count];
+            var nodeResults = new int[states.Count];
+
             for (var i = 0; i < states.Count; i++)
             {
                 var initialState = states[i];
@@ -55,6 +34,7 @@ namespace npuzzle
                 stopwatch.Stop();
 
                 times[i] = ((double) stopwatch.ElapsedTicks) / (Stopwatch.Frequency / 1000L);
+                nodeResults[i] = solver.Nodes;
 
                 Console.WriteLine($"Solution for puzzle {i + 1}");
                 foreach (var state in solution)
@@ -63,36 +43,19 @@ namespace npuzzle
                     state.PrintPuzzle();
                 }
 
-                if (outWriter != null) {
-                    outWriter.WriteLine($"{solution.Count - 1} steps");
-                }  
-                Console.WriteLine($"Solved in {solution.Count - 1} steps, expanded {solver.Nodes} nodes\n");
+                Console.WriteLine($"Solved in {solution.Count - 1} steps\n");
             }
 
             double totalTime = 0;
+            int totalNodes = 0;
             for (var i = 0; i < states.Count; i++)
             {
-                Console.WriteLine($"Puzzle {i + 1} took {times[i]} ms");
+                Console.WriteLine($"Puzzle {i + 1}: {times[i]} ms, {nodeResults[i]} nodes");
                 totalTime += times[i];
-
-                if (outbWriter != null) {
-                    outbWriter.WriteLine($"{i + 1}, {times[i]}");
-                }   
+                totalNodes += nodeResults[i];
             }
 
-            if (outbWriter != null) {
-                outbWriter.WriteLine($"total, {totalTime}");
-            }
-            Console.WriteLine($"Took {totalTime} ms in total");
-
-            if (outbWriter != null) {
-                outbWriter.Flush();
-                outbWriter.Close();
-            }
-            if (outWriter != null) {
-                outWriter.Flush();
-                outWriter.Close();
-            }
+            Console.WriteLine($"Total: {totalTime} ms, {totalNodes} nodes");
         }
     }
 }

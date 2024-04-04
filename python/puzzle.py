@@ -196,43 +196,29 @@ if __name__ == "__main__":
         file_contents = file.read()
         puzzles = read_puzzles(file_contents)
 
-        if len(sys.argv) >= 3:
-            outb_file = open(sys.argv[2], "w")
-        if len(sys.argv) >= 4:
-            out_file = open(sys.argv[3], "w")
+        results = []
 
-        times = []
-
-        print(f"Starting for {len(puzzles)} puzzle(s)...\n")
         for puzzle in puzzles:
             start = time.perf_counter()
 
             solution, nodes = find_path(puzzle)
 
             end = time.perf_counter()
-            times.append((end - start) * 1000.0)
+            t = (end - start) * 1000.0
+
+            results.append((t, nodes))
 
             for p in solution:
                 p.print()
 
-            if out_file is not None:
-                out_file.write(f"{len(solution) - 1} steps\n")
-            print(f"Solved in {len(solution) - 1} steps, explored {nodes} nodes\n")
+            print(f"Solved in {len(solution) - 1} steps\n")
 
-        total = 0
-        for i in range(0, len(times)):
-            print(f"Puzzle {i + 1} took {times[i]} ms")
-            total += times[i]
+        totalTime = 0
+        totalNodes = 0
+        for i in range(0, len(results)):
+            print(f"Puzzle {i + 1}: {results[i][0]} ms, {results[i][1]} nodes")
+            totalTime += results[i][0]
+            totalNodes += results[i][1]
 
-            if outb_file is not None:
-                outb_file.write(f"{i + 1}, {times[i]}\n")
-
-        if outb_file is not None:
-            outb_file.write(f"total, {total}\n")
-        print(f"Took {total} ms in total")
-
-        if out_file is not None:
-            out_file.close()
-        if outb_file is not None:
-            outb_file.close()
-
+        print(f"Total: {totalTime} ms, {totalNodes} nodes")
+            

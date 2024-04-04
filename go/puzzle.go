@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"container/heap"
 	"fmt"
 	"math"
@@ -291,75 +290,36 @@ func main() {
 		fmt.Println("Needs at least argument for input file")
 		os.Exit(1)
 	}
-	filePath := os.Args[1]
+	
+	inputFile := os.Args[1]
 
-	var outbWriter *bufio.Writer
-	if len(os.Args) >= 3 {
-		file, err := os.OpenFile(os.Args[2], os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
-		if err != nil {
-			fmt.Printf("Failed to open the bench file")
-			os.Exit(1)
-		}
-		outbWriter = bufio.NewWriter(file)
-		defer func() {
-			outbWriter.Flush()
-			file.Close()
-		}()
-	}
+	var results []struct{float64; int}
 
-	var outWriter *bufio.Writer
-	if len(os.Args) >= 4 {
-		file, err := os.OpenFile(os.Args[3], os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
-		if err != nil {
-			fmt.Printf("Failed to open the out file")
-			os.Exit(1)
-		}
-		outWriter = bufio.NewWriter(file)
-		defer func() {
-			outWriter.Flush()
-			file.Close()
-		}()
-	}
+	puzzles := ReadPuzzles(inputFile)
 
-	var totalNodes int
-	var times []float64
-
-	puzzles := ReadPuzzles(filePath)
-
-	fmt.Printf("Running for %d puzzle input(s)...\n\n", len(puzzles))
 	for i, puzzle := range puzzles {
 		start := time.Now()
 		solution, nodes := FindPath(puzzle)
 		duration := time.Since(start).Microseconds()
 
-		times = append(times, float64(duration)/1000.0)
+		time := float64(duration)/1000.0
+		results = append(results, struct{float64; int}{time, nodes})
 
 		fmt.Printf("Solution for puzzle %d\n", i+1)
 		for _, puzzle := range solution {
 			fmt.Print(puzzle.PrintPuzzle())
 		}
 
-		outWriter.WriteString(fmt.Sprintf("%d steps\n", len(solution)-1))
-		fmt.Printf("Solved in %d steps, expanded %d nodes\n\n", len(solution)-1, nodes)
-		totalNodes += nodes
+		fmt.Printf("Solved in %d steps\n\n", len(solution)-1)
 	}
 
 	var totalTime float64
-	for i, time := range times {
-		fmt.Printf("Puzzle %d took %f ms\n", i+1, time)
-		totalTime += time
-
-		_, err := outbWriter.WriteString(fmt.Sprintf("%d, %f\n", i+1, time))
-		if err != nil {
-			fmt.Printf("Failed to write to output file")
-			os.Exit(1)
-		}
+	var totalNodes int
+	for i, result := range results {
+		fmt.Printf("Puzzle %d: %f ms, %d nodes\n", i+1, result.float64, result.int)
+		totalTime += result.float64
+		totalNodes += result.int
 	}
 
-	_, err := outbWriter.WriteString(fmt.Sprintf("total, %f", totalTime))
-	if err != nil {
-		fmt.Printf("Failed to write to output file")
-		os.Exit(1)
-	}
-	fmt.Printf("Took %f ms in total, expanded %d nodes in total\n", totalTime, totalNodes)
+	fmt.Printf("Total: %f ms, %d nodes\n", totalTime, totalNodes)
 }

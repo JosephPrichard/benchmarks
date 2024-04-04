@@ -410,7 +410,7 @@ void print_solution(result_t result, int rows) {
         action_t* a = &result.solution[i];
         print_board(a, rows, stdout);
     }
-    printf("Solved in %d steps, explored %d nodes \n", result.steps - 1, result.nodes);
+    printf("Solved in %d steps", result.steps - 1);
 }
 
 void reconstruct_path(puzzle_t* leaf_puz, result_t* result) {
@@ -554,7 +554,7 @@ int parse_inputs(board_input_t inputs[MAX_RUNS], FILE* input_file) {
 
 int main(int argc, char** argv) {
     if (argc < 2) {
-        printf("Need at least 1 program argument\n");
+        printf("Need at least 2 program arguments\n");
         return 1;
     }
 
@@ -565,33 +565,12 @@ int main(int argc, char** argv) {
         exit(1);
     }
 
-    FILE* outb_file = NULL;
-    if (argc >= 3) {
-        char* file_path = argv[2];
-        outb_file = fopen(file_path, "wb");
-        if (outb_file == NULL) {
-            printf("Failed to open the benchmark file %s\n", file_path);
-            exit(1);
-        }
-    }
-
-    FILE* out_file = NULL;
-    if (argc >= 4) {
-        char* file_path = argv[3];
-        out_file = fopen(file_path, "wb");
-        if (out_file == NULL) {
-            printf("Failed to open the out file %s\n", file_path);
-            exit(1);
-        }
-    }
-
     board_input_t inputs[MAX_RUNS] = {0};
     int count = parse_inputs(inputs, input_file);
     fclose(input_file);
 
-    printf("Running for %d puzzle input(s)...\n", count);
-
     result_t results[MAX_RUNS];
+
     for (int i = 0; i < count; i++) {
         struct timeval start, end;
         gettimeofday(&start, NULL);
@@ -605,32 +584,19 @@ int main(int argc, char** argv) {
     }
 
     for (int i = 0; i < count; i++) {
-        printf("\nSolution for puzzle %d\n", i + 1);
+        printf("Solution for puzzle %d\n", i + 1);
         print_solution(results[i], inputs[i].rows);
-        fprintf(out_file, "%d steps\n", results[i].steps - 1);
     }
 
+    int total_nodes = 0;
     double total_time = 0;
     for (int i = 0; i < count; i++) {
-        printf("\nPuzzle %d took %f ms", i + 1, results[i].time);
+        printf("Puzzle %d: %f ms, %d nodes\n", i + 1, results[i].time, results[i].nodes);
         total_time += results[i].time;
-
-        if (outb_file != NULL) {
-            fprintf(outb_file, "%d, %f\n", i + 1, results[i].time);
-        }
-    }
-    printf("\nTook %f ms in total\n", total_time);
-    if (outb_file != NULL) {
-        fprintf(outb_file, "total, %f\n", total_time);
+        total_nodes += results[i].nodes;
     }
 
-    fclose(input_file);
-    if (out_file != NULL) {
-        fclose(out_file);
-    }
-     if (outb_file != NULL) {
-        fclose(outb_file);
-    }
+    printf("Total: %f ms, %d nodes\n", total_time, total_nodes);
 
     return 0;
 }

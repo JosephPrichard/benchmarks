@@ -43,17 +43,13 @@ java/out
 rust/target/*
 
 *.exe
-*.js
+*.jar
 
 out-*.txt
-
-*.jar
 
 csharp/npuzzle/.vs
 csharp/npuzzle/bin
 csharp/npuzzle/obj
 csharp/npuzzle/publish
-
-nodejs/node_modules
 
 output
