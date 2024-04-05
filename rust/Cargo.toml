@@ -7,4 +7,3 @@ edition = "2021"
 
 [dependencies]
 bumpalo = "3.15.3"
-gc = { version = "0.5", features = ["derive"] }

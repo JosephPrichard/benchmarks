@@ -1,7 +1,6 @@
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::{fmt, ops};
 use std::fmt::Formatter;
-use gc::{Finalize, Trace};
 
 type Tile = u8;
 
@@ -34,7 +33,7 @@ impl ops::Add<Position> for Position {
     }
 }
 
-#[derive(Debug, Clone, Trace, Finalize)]
+#[derive(Debug, Clone)]
 pub struct Puzzle<const N: usize> {
     tiles: [Tile; N],
     action: &'static str,

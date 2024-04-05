@@ -47,9 +47,15 @@ fn read_puzzles(file: File) -> Vec<AnyPuzzle> {
     puzzles
 }
 
-fn run_puzzle<const N: usize>(puzzle: Puzzle<N>, i: usize) -> (f64, u32) {
+fn run_puzzle<const N: usize>(puzzle: Puzzle<N>, flag: &str, i: usize) -> (f64, u32) {
+    let find_path = match flag {
+        "arena" => solver::SolverArena::find_path::<N>,
+        "rc" => solver::SolverRc::find_path::<N>,
+        flag => panic!("Invalid flag: {} - must be 'arena' or 'rc'", flag)
+    };
+
     let start = Instant::now();
-    let (solution, nodes) = solver::find_path_arena(puzzle);
+    let (solution, nodes) = find_path(puzzle);
     let elapsed = start.elapsed();
 
     let time = (elapsed.as_micros() as f64) / 1000f64;
@@ -70,24 +76,25 @@ fn main() {
         panic!("Need at least 1 program argument")
     }
 
+    let mut flag = "arena";
+    if args.len() >= 3 {
+        flag = &args[2];
+    }
+
     let file = File::open(&args[1]).unwrap();
 
     let puzzles = read_puzzles(file);
-
     let results = &mut vec![];
-
-    println!("Running solution for {} puzzle input(s)...\n", puzzles.len());
-
     // puzzle sizes are all known at compile time for the purpose of efficiency
     for (i, puzzle) in puzzles.iter().enumerate() {
         println!("Solution for puzzle {}", i+1);
         match puzzle {
             EightPuzzle(puzzle) => {
-                let result = run_puzzle(puzzle.to_owned(), i);
+                let result = run_puzzle(puzzle.to_owned(), flag, i);
                 results.push(result)
             }
             FifteenPuzzle(puzzle) => {
-                let result = run_puzzle(puzzle.to_owned(), i);
+                let result = run_puzzle(puzzle.to_owned(), flag, i);
                 results.push(result)
             }
         };

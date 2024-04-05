@@ -66,16 +66,25 @@ std::vector<AnyPuzzle> read_puzzles(std::istream& is) {
 }
 
 template<std::size_t N>
-std::tuple<float, int> run_puzzle(Puzzle<N> puzzle, int i) {
-    auto start = std::chrono::high_resolution_clock::now();
-    auto path = Puzzle<N>::find_path(puzzle);
-    auto stop = std::chrono::high_resolution_clock::now();
+std::tuple<float, int> run_puzzle(Puzzle<N> puzzle, std::string& flag, int i) {
+    FindPathFunc<N> find_path = nullptr;
+    if (flag == "arena") {
+        find_path = SolverArena<N>::find_path;
+    } else if (flag == "sp") {
+        find_path = SolverSp<N>::find_path;
+    } else {
+        throw std::invalid_argument("Invalid flag - must be 'arena' or 'sp'");
+    }
 
-    auto duration =  std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-    auto time = ((float) duration.count()) / 1000.0f;
+    auto start = std::chrono::high_resolution_clock::now();
+    auto path = find_path(puzzle);
+    auto stop = std::chrono::high_resolution_clock::now();
 
     auto solution = std::get<0>(path);
     auto nodes = std::get<1>(path);
+
+    auto duration =  std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
+    auto time = ((float) duration.count()) / 1000.0f;
 
     for (auto &p : solution) {
         std::cout << p;
@@ -91,10 +100,15 @@ int main(int argc, char* argv[]) {
         exit(1);
     }
 
+    std::string flag = "arena";
+    if (argc >= 3) {
+        flag = std::string(argv[2]);
+    }
+
     std::fstream fs_in;
     fs_in.open(argv[1]);
     if (!fs_in.is_open()) {
-        std::cout << "Failed to open input file " << argv[2] << std::endl;
+        std::cout << "Failed to open input file " << argv[1] << std::endl;
         exit(1);
     }
 
@@ -106,12 +120,12 @@ int main(int argc, char* argv[]) {
 
         if (std::holds_alternative<EightPuzzle>(puzzle_var)) {
             auto puzzle = std::get<EightPuzzle>(puzzle_var);
-            auto result = run_puzzle(puzzle.value, i);
+            auto result = run_puzzle(puzzle.value, flag, i);
 
             results.emplace_back(result);
         } else if (std::holds_alternative<FifteenPuzzle>(puzzle_var)) {
             auto puzzle = std::get<FifteenPuzzle>(puzzle_var);
-            auto result = run_puzzle(puzzle.value, i);
+            auto result = run_puzzle(puzzle.value, flag, i);
 
             results.emplace_back(result);
         }

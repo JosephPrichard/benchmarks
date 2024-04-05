@@ -10,8 +10,10 @@ rows=()
 paths=(
     "./c/puzzle.exe"
     "./cpp/puzzle.exe"
+    "./cpp/puzzle.exe"
     "./csharp/npuzzle/publish/npuzzle.exe"
     "./go/puzzle.exe"
+    "./rust/target/release/puzzle.exe"
     "./rust/target/release/puzzle.exe"
     "./ocaml/_build/install/default/bin/puzzleml.exe"
     "java -cp ./java/out/puzzle.jar src.Main"
@@ -19,12 +21,18 @@ paths=(
     "python ./python/puzzle.py"
 )
 
+declare -A args
+args["Rust Arena"]="arena"
+args["Rust RC"]="rc"
+
 languages=(
     "C"
-    "C++"
+    "C++ Arena"
+    "C++ shared_ptr"
     "C#"
     "Go"
-    "Rust"
+    "Rust Arena"
+    "Rust Rc"
     "OCaml"
     "Java"
     "Node.js"
@@ -34,8 +42,10 @@ languages=(
 extensions=(
     "c"
     "cpp"
+    "cpp"
     "cs"
     "go"
+    "rs"
     "rs"
     "ml"
     "java"
@@ -55,7 +65,9 @@ for ((i = 0; i < ${#paths[@]}; i++)); do
     language="${languages[$i]}"
     extension="${extensions[$i]}"
 
-    result=$(eval "$path" "$INPUT_FILE")
+    arg="${args[$language]}"
+
+    result=$(eval "$path" "$INPUT_FILE" "$arg")
     echo "$result"
     row=$(get_row "$result" "$language" "$extension")
     rows+=("$row")
