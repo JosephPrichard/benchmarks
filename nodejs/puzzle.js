@@ -71,7 +71,6 @@ class Puzzle {
 
     printString() {
         let s = "";
-        s += this.action.toString() + "\n";
         for (let i = 0; i < this.tiles.length; i++) {
             if (this.tiles[i] === 0) {
                 s += "  ";
@@ -287,7 +286,7 @@ function main() {
         results.push({time, nodes});
 
         for (const p of path) {
-            console.log(p.printString());
+            console.log(p.action);
         }
         console.log(`Solved in ${path.length - 1} steps\n`);
     }

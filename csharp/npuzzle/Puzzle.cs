@@ -1,37 +1,25 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-
-namespace npuzzle
+﻿namespace npuzzle
 {
-    public class Puzzle
+    public class Puzzle(byte[] tiles)
     {
-        private static readonly int[][] Directions = { new[] { 0, -1 }, new[] { 0, 1 }, new[] { 1, 0 }, new[] { -1, 0 } };
+        private static readonly int[][] Directions = [[0, -1], [0, 1], [1, 0], [-1, 0]];
 
-        private static readonly string[] Actions = { "Left", "Right", "Down", "Up" };
+        private static readonly string[] Actions = ["Left", "Right", "Down", "Up"];
 
         public Puzzle? Parent { get; private set; }
-        public int[] Tiles { get; }
+        public byte[] Tiles { get; } = tiles;
         public string Action = "Start";
-        public int F { get; set; }
-        private int G { get; set; }
+        public int F { get; set; } = 0;
+        private int G { get; set; } = 0;
 
-        public int Dimension => (int)Math.Sqrt(Tiles.Length);
+        public int Dimension => (int) Math.Sqrt(Tiles.Length);
 
-        public Puzzle(int[] tiles)
-        {
-            Tiles = tiles;
-            F = 0;
-            G = 0;
-        }
-
-        private static Puzzle OfList(List<int> puzzleList)
+        private static Puzzle OfList(List<byte> puzzleList)
         {
             var puzzle = puzzleList.ToArray();
             
             var dimension = Math.Sqrt(puzzle.Length);
-            if ((dimension - (int)Math.Floor(dimension)) != 0)
+            if ((dimension - (int) Math.Floor(dimension)) != 0)
             {
                 throw new InvalidPuzzleException("Matrices must be square");
             }
@@ -42,7 +30,7 @@ namespace npuzzle
         public static List<Puzzle> FromFile(FileInfo file)
         {
             var states = new List<Puzzle>();
-            var currPuzzle = new List<int>();
+            var currPuzzle = new List<byte>();
 
             using (var reader = new StreamReader(file.FullName))
             {
@@ -55,7 +43,7 @@ namespace npuzzle
                     if (tokens.Length == 0 || line == string.Empty)
                     {
                         states.Add(OfList(currPuzzle));
-                        currPuzzle = new List<int>();
+                        currPuzzle = [];
                     }
                     else
                     {
@@ -63,7 +51,7 @@ namespace npuzzle
                         {
                             if (!string.IsNullOrEmpty(token))
                             {
-                                currPuzzle.Add(int.Parse(token));
+                                currPuzzle.Add((byte) int.Parse(token));
                             }
                         }
                     }
@@ -85,6 +73,17 @@ namespace npuzzle
         private static bool InBounds(int row, int col, int dimension) =>
             row >= 0 && row < dimension && col >= 0 && col < dimension;
 
+        public ulong Hash() {
+            var hash = 0ul;
+            for (var i = 0; i < Tiles.Length; i++)
+            {
+                int tile = Tiles[i];
+                var mask = ((ulong) tile) << (i * 4);
+                hash |= mask;
+            }
+            return hash;
+        }
+
         public void OnNeighbors(Action<Puzzle> onNeighbor)
         {
             var dimension = Dimension;
@@ -101,7 +100,7 @@ namespace npuzzle
                 if (!InBounds(nextRow, nextCol, dimension))
                     continue;
 
-                var nextPuzzle = new int[Tiles.Length];
+                var nextPuzzle = new byte[Tiles.Length];
                 Array.Copy(Tiles, nextPuzzle, Tiles.Length);
 
                 var nextIndex = nextRow * dimension + nextCol;

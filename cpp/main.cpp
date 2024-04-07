@@ -19,17 +19,7 @@ void split_string(std::string s, std::string delim, const F& f) {
     f(s);
 }
 
-struct EightPuzzle {
-    Puzzle<3> value;
-    EightPuzzle(Puzzle<3> v) : value(v) {}
-};
-
-struct FifteenPuzzle {
-    Puzzle<4> value;
-    FifteenPuzzle(Puzzle<4> v) : value(v) {}
-};
-
-typedef std::variant<EightPuzzle, FifteenPuzzle> AnyPuzzle;
+typedef std::variant<Puzzle<3>, Puzzle<4>> AnyPuzzle;
 
 std::vector<AnyPuzzle> read_puzzles(std::istream& is) {
     std::vector<Tile> curr_tiles;
@@ -41,11 +31,11 @@ std::vector<AnyPuzzle> read_puzzles(std::istream& is) {
 
         if (line.empty()) {
             if (curr_tiles.size() == 9) {
-                auto puzzle = EightPuzzle(Puzzle<3>(curr_tiles));
+                auto puzzle = Puzzle<3>(curr_tiles);
                 puzzles.emplace_back(puzzle);
                 curr_tiles.clear();
             } else if (curr_tiles.size() == 16) {
-                auto puzzle = FifteenPuzzle(Puzzle<4>(curr_tiles));
+                auto puzzle = Puzzle<4>(curr_tiles);
                 puzzles.emplace_back(puzzle);
                 curr_tiles.clear();
             } else if (!curr_tiles.empty()) {
@@ -71,7 +61,7 @@ std::tuple<float, int> run_puzzle(Puzzle<N> puzzle, std::string& flag, int i) {
     if (flag == "arena") {
         find_path = SolverArena<N>::find_path;
     } else if (flag == "sp") {
-        find_path = SolverSp<N>::find_path;
+        find_path = SolverSharedPtr<N>::find_path;
     } else {
         throw std::invalid_argument("Invalid flag - must be 'arena' or 'sp'");
     }
@@ -87,7 +77,7 @@ std::tuple<float, int> run_puzzle(Puzzle<N> puzzle, std::string& flag, int i) {
     auto time = ((float) duration.count()) / 1000.0f;
 
     for (auto &p : solution) {
-        std::cout << p;
+        std::cout << p.get_action();
     }
     std::cout << "Solved in " << (solution.size() - 1) << " steps\n" << std::endl;
 
@@ -118,14 +108,14 @@ int main(int argc, char* argv[]) {
     for (int i = 0; i < puzzles.size(); i++) {
         auto& puzzle_var = puzzles[i];
 
-        if (std::holds_alternative<EightPuzzle>(puzzle_var)) {
-            auto puzzle = std::get<EightPuzzle>(puzzle_var);
-            auto result = run_puzzle(puzzle.value, flag, i);
+        if (std::holds_alternative<Puzzle<3>>(puzzle_var)) {
+            auto puzzle = std::get<Puzzle<3>>(puzzle_var);
+            auto result = run_puzzle(puzzle, flag, i);
 
             results.emplace_back(result);
-        } else if (std::holds_alternative<FifteenPuzzle>(puzzle_var)) {
-            auto puzzle = std::get<FifteenPuzzle>(puzzle_var);
-            auto result = run_puzzle(puzzle.value, flag, i);
+        } else if (std::holds_alternative<Puzzle<4>>(puzzle_var)) {
+            auto puzzle = std::get<Puzzle<4>>(puzzle_var);
+            auto result = run_puzzle(puzzle, flag, i);
 
             results.emplace_back(result);
         }

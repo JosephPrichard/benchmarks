@@ -8,7 +8,7 @@ let run_solutions tiles =
       let f = Unix.gettimeofday () *. 1000.0 in
 
       Printf.printf "Solution for puzzle %d\n" (i + 1);
-      List.iter (Puzzle.print_puzzle "\n") solution;
+      List.iter Puzzle.print_action solution;
 
       Printf.printf "Solved in %d steps\n\n" (List.length solution - 1);
       (f -. s, nodes))

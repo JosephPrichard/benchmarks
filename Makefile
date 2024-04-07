@@ -1,10 +1,10 @@
-CFLAGS=-O3
+CFLAGS=-O3 -march=native
 SHELL=bash
 
 all: c-build cpp-build go-build rust-build-release csharp-build java-build ocaml-build
 
 c-build: c
-	gcc $(CFLAGS) c/puzzle.c -o c/puzzle.exe
+	gcc $(CFLAGS) c/main.c -o c/puzzle.exe
 
 cpp-build: cpp
 	g++ $(CFLAGS) -std=c++20 cpp/main.cpp -o cpp/puzzle.exe

@@ -40,7 +40,6 @@ namespace npuzzle
                 foreach (var state in solution)
                 {
                     Console.WriteLine(state.Action);
-                    state.PrintPuzzle();
                 }
 
                 Console.WriteLine($"Solved in {solution.Count - 1} steps\n");

@@ -42,7 +42,6 @@ public class Main
             System.out.printf("Solution for puzzle %d\n", i + 1);
             for (var state : solution) {
                 System.out.println(state.getAction());
-                state.printPuzzle();
             }
 
             System.out.printf("Solved in %d steps\n\n", solution.size() - 1);

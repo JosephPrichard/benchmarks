@@ -90,7 +90,6 @@ class Puzzle:
         return s
 
     def print(self):
-        print(self.action)
         for i in range(0, len(self.tiles)):
             if self.tiles[i] == 0:
                 print("  ", end="")
@@ -209,7 +208,7 @@ if __name__ == "__main__":
             results.append((t, nodes))
 
             for p in solution:
-                p.print()
+                print(p.action)
 
             print(f"Solved in {len(solution) - 1} steps\n")
 

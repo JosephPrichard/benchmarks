@@ -8,6 +8,8 @@ package src;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.PrintStream;
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
@@ -23,17 +25,21 @@ public class Puzzle
     private static final String[] ACTIONS = {"Left", "Right", "Down", "Up"};
 
     private Puzzle parent = null;
-    private final int[] puzzle;
+    private final byte[] tiles;
     private String action = "Start";
     private int f = 0;
     private int g = 0;
 
-    public Puzzle(int[] puzzle) {
-        this.puzzle = puzzle;
+    public Puzzle(byte[] puzzle) {
+        this.tiles = puzzle;
     }
 
     public static Puzzle ofList(List<Integer> puzzleList) {
-        var puzzle = puzzleList.stream().mapToInt(x -> x).toArray();
+        var puzzle = new byte[puzzleList.size()];
+        for (var i = 0; i < puzzleList.size(); i++) {
+            puzzle[i] = (byte) puzzleList.get(i).intValue();
+        }
+
         var dimension = Math.sqrt(puzzle.length);
         if (dimension - Math.floor(dimension) != 0) {
             throw new InvalidPuzzleException("Matrices must be square");
@@ -68,7 +74,7 @@ public class Puzzle
     }
 
     public int length() {
-        return puzzle.length;
+        return tiles.length;
     }
 
     public int getDimension() {
@@ -91,8 +97,8 @@ public class Puzzle
         return action;
     }
 
-    public int[] getPuzzle() {
-        return puzzle;
+    public byte[] getTiles() {
+        return tiles;
     }
 
     public void unlink() {
@@ -102,7 +108,7 @@ public class Puzzle
 
     public boolean equals(Puzzle other) {
         for (var i = 0; i < length(); i++) {
-            if (puzzle[i] != other.getPuzzle()[i]) {
+            if (tiles[i] != other.getTiles()[i]) {
                 return false;
             }
         }
@@ -112,7 +118,7 @@ public class Puzzle
     @Override
     public String toString() {
         var stringBuilder = new StringBuilder();
-        for (var tile : puzzle) {
+        for (var tile : tiles) {
             stringBuilder.append(tile);
         }
         return stringBuilder.toString();
@@ -137,8 +143,8 @@ public class Puzzle
                 continue;
             }
 
-            var nextPuzzle = new int[puzzle.length];
-            System.arraycopy(puzzle, 0, nextPuzzle, 0, puzzle.length);
+            var nextPuzzle = new byte[tiles.length];
+            System.arraycopy(tiles, 0, nextPuzzle, 0, tiles.length);
 
             var nextIndex = nextRow * dimension + nextCol;
             var temp = nextPuzzle[zeroIndex];
@@ -166,8 +172,8 @@ public class Puzzle
 
     public void printPuzzle(PrintStream stream, String empty) {
         var dimension = getDimension();
-        for (var i = 0; i < puzzle.length; i++) {
-            var tile = puzzle[i];
+        for (var i = 0; i < tiles.length; i++) {
+            var tile = tiles[i];
             if (tile == 0) {
                 stream.print(empty + " ");
             } else {
@@ -180,8 +186,8 @@ public class Puzzle
     }
 
     public int findZero() {
-        for (var i = 0; i < puzzle.length; i++) {
-            if (puzzle[i] == 0) {
+        for (var i = 0; i < tiles.length; i++) {
+            if (tiles[i] == 0) {
                return i;
             }
         }

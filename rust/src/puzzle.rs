@@ -36,7 +36,7 @@ impl ops::Add<Position> for Position {
 #[derive(Debug, Clone)]
 pub struct Puzzle<const N: usize> {
     tiles: [Tile; N],
-    action: &'static str,
+    pub action: &'static str,
 }
 
 static DIRECTIONS: [(Position, &'static str); 4] = [
@@ -64,7 +64,7 @@ impl<const N: usize> Puzzle<N> {
     const DIM: i32 = int_sqrt(N as i32);
 
     pub fn from_tiles(tiles: [Tile; N]) -> Self {
-        Self { tiles, action: ""}
+        Self { tiles, action: "Start"}
     }
 
     pub fn from_u8_slice(slice: &[u8]) -> Self {
@@ -126,17 +126,25 @@ impl<const N: usize> Puzzle<N> {
         }
     }
 
+    // pub fn hash_u64(&self) -> u64 {
+    //     let mut hasher = DefaultHasher::new();
+    //     self.hash(&mut hasher);
+    //     hasher.finish()
+    // }
+
     pub fn hash_u64(&self) -> u64 {
-        let mut hasher = DefaultHasher::new();
-        self.hash(&mut hasher);
-        hasher.finish()
+        let mut hash = 0u64;
+        for (i, tile) in self.tiles.iter().enumerate() {
+            let tile = *tile as u64;
+            let mask = tile << (i * 4);
+            hash |= mask;
+        }
+        return hash;
     }
 }
 
 impl<const N: usize> fmt::Display for Puzzle<N> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        let action = if self.action.is_empty() { "Start" } else { self.action };
-        writeln!(f, "{}", action)?;
         for i in 0..self.tiles.len() {
             if self.tiles[i] != 0 {
                 write!(f, "{} ", self.tiles[i])?;

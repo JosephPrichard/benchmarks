@@ -10,8 +10,8 @@ namespace npuzzle
 
         public PuzzleSolver(int boardSize)
         {
-            var num = 0;
-            var goalPuzzle = new int[boardSize];
+            byte num = 0;
+            var goalPuzzle = new byte[boardSize];
             for (var i = 0; i < goalPuzzle.Length; i++)
             {
                 goalPuzzle[i] = num;
@@ -48,7 +48,7 @@ namespace npuzzle
 
         public List<Puzzle> FindSolution(Puzzle initialState)
         {
-            var visited = new HashSet<string>();
+            var visited = new HashSet<ulong>();
             var frontier = new PriorityQueue<Puzzle, int>();
             frontier.Enqueue(initialState, initialState.F);
 
@@ -56,7 +56,7 @@ namespace npuzzle
             while (frontier.Count > 0)
             {
                 var currentState = frontier.Dequeue();
-                visited.Add(currentState.ToString());
+                visited.Add(currentState.Hash());
                 Nodes += 1;
 
                 if (currentState.Equals(_goalState))
@@ -66,7 +66,7 @@ namespace npuzzle
 
                 currentState.OnNeighbors((neighbor) =>
                 {
-                    if (!visited.Contains(neighbor.ToString()))
+                    if (!visited.Contains(neighbor.Hash()))
                     {
                         var h = Heuristic(neighbor);
                         neighbor.SetFScore(h);
@@ -75,10 +75,10 @@ namespace npuzzle
                 });
             }
 
-            return new List<Puzzle>();
+            return [];
         }
 
-        private static List<Puzzle> ReconstructPath(Puzzle currentState)
+        private static List<Puzzle> ReconstructPath(Puzzle? currentState)
         {
             var list = new List<Puzzle>();
             while (currentState != null)

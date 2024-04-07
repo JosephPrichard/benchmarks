@@ -51,7 +51,6 @@ let in_bounds (pos : position) size =
 
 let ( ++ ) (row1, col1) (row2, col2) : position = (row1 + row2, col1 + col2)
 
-(* Gets the tile at a position on the tiles, raises an exception if the position is invalid *)
 let ( .%() ) tiles pos =
   let size = size_of_tiles tiles in
   if in_bounds pos size then
@@ -64,7 +63,6 @@ let ( .%() ) tiles pos =
     in
     raise (Invalid_argument m)
 
-(* Search for empty tile on the tiles and return the position - raise exception if the empty tile doesn't exist - should NOT happen*)
 let find_empty tiles size =
   let rec loop i =
     if i < Array.length tiles then
@@ -86,7 +84,6 @@ let adjacent_directions pos size =
   in
   List.filter (fun (pos, _) -> in_bounds pos size) directions
 
-(* Swap two tiles on the tiles for the given positions *)
 let swap tiles pos1 pos2 =
   let size = size_of_tiles tiles in
   Array.mapi
@@ -105,7 +102,6 @@ let manhattan_distance pos1 pos2 =
   let row2, col2 = pos2 in
   abs (row2 - row1) + abs (col2 - col1)
 
-(* Calculate the heuristic of the given tiles relative to a PREDEFINED GOAL STATE *)
 let calc_heurstic tiles =
   let size = size_of_tiles tiles in
   let reduce_heuristic (sum_h, i) tile =
@@ -162,16 +158,16 @@ let create_goal len =
   in
   Array.of_list (loop (len - 1) [])
 
-let hash_of_tiles tiles =
-  let rec loop i buf =
+let hash_of_tiles tiles : int64 =
+  let rec loop i hash =
     if i < Array.length tiles then
-      let str = string_of_int tiles.(i) in
-      let _ = Buffer.add_string buf str in
-      loop (i + 1) buf
+      let tile = Int64.of_int (tiles.(i)) in
+      let mask = Int64.shift_left (tile) (i * 4) in
+      loop (i + 1) (Int64.logor hash mask)
     else
-      Buffer.contents buf
+      hash
   in
-  loop 0 (Buffer.create 16)
+  loop 0 0L
 
 (* Get the next puzzles for a given puzzle - each generated next puzzle will be linked to this puzzle as a child*)
 let next_puzzles puzzle =
@@ -187,8 +183,10 @@ let next_puzzles puzzle =
     []
     (adjacent_directions empty_pos size)
 
+let print_action puzzle = Printf.printf "%s\n" (string_of_move puzzle.move)
+
 let print_puzzle endl puzzle =
-  Printf.printf "%s\n" (string_of_move puzzle.move);
+  print_action puzzle;
   let size = size_of_tiles puzzle.tiles in
   Array.iteri
     (fun i tile ->

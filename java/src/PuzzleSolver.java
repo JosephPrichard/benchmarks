@@ -4,6 +4,7 @@
  */
 package src;
 
+import java.math.BigInteger;
 import java.util.*;
 
 /**
@@ -16,8 +17,8 @@ public class PuzzleSolver
     private int nodes = 0;
 
     public PuzzleSolver(int boardSize) {
-        var num = 0;
-        var goalPuzzle = new int[boardSize * boardSize];
+        byte num = 0;
+        var goalPuzzle = new byte[boardSize * boardSize];
         for (var i = 0; i < goalPuzzle.length; i++) {
             goalPuzzle[i] = num;
             num++;
@@ -30,11 +31,11 @@ public class PuzzleSolver
     }
 
     public int heuristic(Puzzle puzzleState) {
-        var puzzle = puzzleState.getPuzzle();
+        var puzzle = puzzleState.getTiles();
         var dimension = puzzleState.getDimension();
         var h = 0;
         for (var i = 0; i < puzzle.length; i++) {
-            int tile = puzzle[i];
+            var tile = puzzle[i];
             if (tile != 0) {
                 var row1 = i / dimension;
                 var col1 = i % dimension;

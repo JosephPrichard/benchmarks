@@ -51,6 +51,7 @@ fn run_puzzle<const N: usize>(puzzle: Puzzle<N>, flag: &str, i: usize) -> (f64, 
     let find_path = match flag {
         "arena" => solver::SolverArena::find_path::<N>,
         "rc" => solver::SolverRc::find_path::<N>,
+        "slow" => solver::SolverSlow::find_path::<N>,
         flag => panic!("Invalid flag: {} - must be 'arena' or 'rc'", flag)
     };
 
@@ -62,7 +63,7 @@ fn run_puzzle<const N: usize>(puzzle: Puzzle<N>, flag: &str, i: usize) -> (f64, 
 
     println!("Solution for puzzle {}", (i + 1));
     for puzzle in &solution {
-        print!("{}", puzzle);
+        println!("{}", puzzle.action);
     }
 
     println!("Solved in {} steps, expanded {} nodes\n", solution.len() - 1, nodes);
@@ -87,7 +88,6 @@ fn main() {
     let results = &mut vec![];
     // puzzle sizes are all known at compile time for the purpose of efficiency
     for (i, puzzle) in puzzles.iter().enumerate() {
-        println!("Solution for puzzle {}", i+1);
         match puzzle {
             EightPuzzle(puzzle) => {
                 let result = run_puzzle(puzzle.to_owned(), flag, i);

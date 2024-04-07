@@ -71,23 +71,29 @@ public:
         return puzzle;
     }
 
-    Action get_action() const {
+    [[nodiscard]] Action get_action() const {
         return action;
     };
 
-    Position pos_of_index(int index) {
+    [[nodiscard]] Position pos_of_index(int index) const {
         return Position{index / N, index % N};
     }
 
-    std::string hash_tiles() const {
-        std::string str(std::begin(tiles), std::end(tiles));
-        return str;
+    // 64 BIT HASH FOR AN ARRAY OF LENGTH 16 WHERE EACH ELEMENT IS 4 BITS
+    [[nodiscard]] unsigned long long hash_tiles() const {
+        unsigned long long hash = 0;
+        for (int i = 0; i < SIZE; i++) {
+            Tile tile = tiles[i];
+            long long mask = ((unsigned long long) tile) << (i * 4);
+            hash = (hash | mask);
+        }
+        return hash;
     }
 
-    int heuristic() {
+    [[nodiscard]] int heuristic() const {
         int h = 0;
         for (int i = 0; i < SIZE; i++) {
-            Tile tile = this->get_tile(i);
+            Tile tile = this->tiles[i];
             if (tile != 0) {
                 auto pos1 = pos_of_index(tile);
                 auto row1 = std::get<0>(pos1);
@@ -103,35 +109,35 @@ public:
         return h;
     }
 
-    Puzzle<N> get_neighbor(Position new_pos, Position zero_pos, Action a) {
+    Puzzle<N> get_neighbor(Position new_pos, Position zero_pos, Action a) const {
         auto new_puzzle = *this;
 
-        auto temp = new_puzzle.get_tile(new_pos);
-        new_puzzle.get_tile(new_pos) = new_puzzle.get_tile(zero_pos);
-        new_puzzle.get_tile(zero_pos) = temp;
+        auto temp = new_puzzle[new_pos];
+        new_puzzle[new_pos] = new_puzzle[zero_pos];
+        new_puzzle[zero_pos] = temp;
 
         new_puzzle.action = a;
 
         return new_puzzle;
     }
 
-    Position find_zero() {
+    [[nodiscard]] Position find_zero() const {
         for (int i = 0; i < SIZE; i++) {
-            if (this->get_tile(i) == 0) {
+            if (this->tiles[i] == 0) {
                 return pos_of_index(i);
             }
         }
         throw std::invalid_argument("Puzzle should contain a zero");
     }
 
-    Tile get_tile(int index) const {
+    [[nodiscard]] Tile get_tile(int index) const {
         return tiles[index];
     }
 
-    Tile& get_tile(Position pos) {
+    Tile& operator[](Position pos) {
         auto row = std::get<0>(pos);
         auto col = std::get<1>(pos);
-        return tiles.at(row * N + col);
+        return tiles[row * N + col];
     }
 private:
     std::array<Tile, SIZE> tiles;
@@ -164,8 +170,8 @@ public:
     Node<N>* get_prev() {
         return prev;
     }
-    
-    int get_fscore() const {
+
+    [[nodiscard]] int get_fscore() const {
         return f;
     }
 private:
@@ -201,8 +207,8 @@ public:
     std::shared_ptr<NodeSp<N>> get_prev() {
         return prev;
     }
-    
-    int get_fscore() const {
+
+    [[nodiscard]] int get_fscore() const {
         return f;
     }
 private:
@@ -233,7 +239,7 @@ public:
     static Path<N> find_path(Puzzle<N> initial) {
         Arena<Node<N>> arena;
 
-        std::unordered_map<std::string, bool> visited;
+        std::unordered_map<unsigned long long, bool> visited;
 
         auto cmp = [](Node<N>* lhs, Node<N>* rhs)
             { return lhs->get_fscore() > rhs->get_fscore(); };
@@ -242,12 +248,12 @@ public:
         Node<N> initial_node(initial);
         frontier.push(&initial_node);
 
-        auto& goal = Puzzle<N>::get_goal();
+        const Puzzle<N>& goal = Puzzle<N>::get_goal();
 
         int nodes = 0;
         while (!frontier.empty()) {
-            auto node = frontier.top();
-            auto curr_puzzle = node->get_puzzle();
+            Node<N>* node = frontier.top();
+            const Puzzle<N>& curr_puzzle = node->get_puzzle();
 
             frontier.pop();
             nodes++;
@@ -267,10 +273,9 @@ public:
                 auto new_pos = zero_pos + d;
                 if (Puzzle<N>::in_bounds(new_pos)) {
                     auto next_puzzle = curr_puzzle.get_neighbor(new_pos, zero_pos, a);
-                    Node<N> next_node(next_puzzle, node);
                     
                     if (visited.count(next_puzzle.hash_tiles()) <= 0) {
-                        auto neighbor = arena.alloc(next_node);
+                        auto neighbor = new(arena.alloc()) Node<N>(next_puzzle, node);
                         frontier.push(neighbor);
                     }
                 }
@@ -294,10 +299,10 @@ private:
 };
 
 template<std::size_t N = 3>
-class SolverSp {
+class SolverSharedPtr {
 public:
     static Path<N> find_path(Puzzle<N> initial) {
-        std::unordered_map<std::string, bool> visited;
+        std::unordered_map<unsigned long long, bool> visited;
 
         auto cmp = [](std::shared_ptr<NodeSp<N>> lhs, std::shared_ptr<NodeSp<N>> rhs)
             { return lhs->get_fscore() > rhs->get_fscore(); };
@@ -306,12 +311,12 @@ public:
         NodeSp<N> initial_node(initial);
         frontier.push(std::make_shared<NodeSp<N>>(initial_node));
 
-        auto& goal = Puzzle<N>::get_goal();
+        const Puzzle<N>& goal = Puzzle<N>::get_goal();
 
         int nodes = 0;
         while (!frontier.empty()) {
-            auto node = frontier.top();
-            auto curr_puzzle = node->get_puzzle();
+            std::shared_ptr<NodeSp<N>> node = frontier.top();
+            const Puzzle<N>& curr_puzzle = node->get_puzzle();
 
             frontier.pop();
             nodes++;
@@ -331,10 +336,9 @@ public:
                 auto new_pos = zero_pos + d;
                 if (Puzzle<N>::in_bounds(new_pos)) {
                     auto next_puzzle = curr_puzzle.get_neighbor(new_pos, zero_pos, a);
-                    NodeSp<N> next_node(next_puzzle, node);
-                    
+
                     if (visited.count(next_puzzle.hash_tiles()) <= 0) {
-                        auto neighbor = std::make_shared<NodeSp<N>>(next_node);
+                        auto neighbor = std::make_shared<NodeSp<N>>(next_puzzle, node);
                         frontier.push(neighbor);
                     }
                 }
@@ -390,7 +394,6 @@ std::ostream& operator<<(std::ostream& os, Action a) {
 
 template<std::size_t N>
 std::ostream& operator<<(std::ostream& os, const Puzzle<N>& puzzle) {
-    os << puzzle.get_action();
     for (int i = 0; i < Puzzle<N>::SIZE; i++) {
         auto tile = (int) puzzle.get_tile(i);
         if (tile == 0) {

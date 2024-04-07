@@ -67,20 +67,23 @@ func IntSqrt(x int) int {
 	return int(math.Sqrt(float64(x)))
 }
 
-func (puzzle Puzzle) PrintPuzzle() string {
-	var sb strings.Builder
+func (puzzle *Puzzle) PrintAction() string {
 	switch puzzle.action {
 	case Down:
-		sb.WriteString("Down\n")
+		return "Down\n"
 	case Up:
-		sb.WriteString("Up\n")
+		return "Up\n"
 	case Left:
-		sb.WriteString("Left\n")
+		return "Left\n"
 	case Right:
-		sb.WriteString("Right\n")
+		return "Right\n"
 	default:
-		sb.WriteString("Start\n")
+		return "Start\n"
 	}
+}
+
+func (puzzle *Puzzle) PrintPuzzle() string {
+	var sb strings.Builder
 	dim := IntSqrt(len(puzzle.tiles))
 	for i, tile := range puzzle.tiles {
 		if tile == 0 {
@@ -111,7 +114,7 @@ func abs(i int) int {
 	return i
 }
 
-func (puzzle Puzzle) Heuristic() int {
+func (puzzle *Puzzle) Heuristic() int {
 	h := 0
 	for i, tile := range puzzle.tiles {
 		pos1 := IndexToPos(i, puzzle.dim)
@@ -123,7 +126,7 @@ func (puzzle Puzzle) Heuristic() int {
 	return h
 }
 
-func (puzzle Puzzle) FindZero() Position {
+func (puzzle *Puzzle) FindZero() Position {
 	for i, tile := range puzzle.tiles {
 		if tile == 0 {
 			return IndexToPos(i, puzzle.dim)
@@ -132,12 +135,13 @@ func (puzzle Puzzle) FindZero() Position {
 	panic("Puzzle contains no zero - this should never happen")
 }
 
-func (puzzle Puzzle) Hash() string {
-	var sb strings.Builder
-	for _, tile := range puzzle.tiles {
-		sb.WriteByte(tile)
-	}
-	return sb.String()
+func (puzzle *Puzzle) Hash() uint64 {
+	var hash uint64;
+    for i, tile := range puzzle.tiles {
+        mask := (uint64(tile)) << (i * 4);
+        hash = (hash | mask);
+    }
+    return hash;
 }
 
 type Direction struct {
@@ -152,7 +156,7 @@ var directions = []Direction{
 	{pos: Position{row: -1, col: 0}, action: Up},
 }
 
-func (puzzle Puzzle) OnNeighbors(onNeighbor func(puzzle *Puzzle)) {
+func (puzzle *Puzzle) OnNeighbors(onNeighbor func(puzzle *Puzzle)) {
 	zeroPos := puzzle.FindZero()
 	for _, direction := range directions {
 		newPos := zeroPos.Add(direction.pos)
@@ -160,7 +164,7 @@ func (puzzle Puzzle) OnNeighbors(onNeighbor func(puzzle *Puzzle)) {
 			continue
 		}
 
-		nextPuzzle := NewPuzzle(&puzzle, slices.Clone(puzzle.tiles), puzzle.dim)
+		nextPuzzle := NewPuzzle(puzzle, slices.Clone(puzzle.tiles), puzzle.dim)
 
 		temp := nextPuzzle.tiles[newPos.ToIndex(puzzle.dim)]
 		nextPuzzle.tiles[newPos.ToIndex(puzzle.dim)] = nextPuzzle.tiles[zeroPos.ToIndex(puzzle.dim)]
@@ -215,7 +219,7 @@ func ReconstructPath(puzzle *Puzzle) []Puzzle {
 }
 
 func FindPath(initial Puzzle) ([]Puzzle, int) {
-	visited := make(map[string]bool)
+	visited := make(map[uint64]bool)
 
 	frontier := PuzzleHeap{array: make([]*Puzzle, 0)}
 	frontier.Push(&initial)
@@ -307,7 +311,7 @@ func main() {
 
 		fmt.Printf("Solution for puzzle %d\n", i+1)
 		for _, puzzle := range solution {
-			fmt.Print(puzzle.PrintPuzzle())
+			fmt.Print(puzzle.PrintAction())
 		}
 
 		fmt.Printf("Solved in %d steps\n\n", len(solution)-1)
