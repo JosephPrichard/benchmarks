@@ -65,26 +65,28 @@ impl SolverArena {
     pub fn find_path<const N: usize>(initial: Puzzle<N>) -> (Vec<Puzzle<N>>, u32) {
         let arena = Bump::new();
     
-        let mut visited: HashSet<&Puzzle<N>> = HashSet::new();
+        let mut visited: HashSet<u64> = HashSet::new();
         let mut frontier: BinaryHeap<&Node<N>> = BinaryHeap::new();
     
         let root = Node::new_root(initial);
         frontier.push(&root);
     
-        let goal = Puzzle::goal();
+        let goal = Puzzle::<N>::goal();
+        let goal_hash = goal.hash_u64();
     
         let mut nodes = 0;
         while let Some(n) = frontier.pop() {
             nodes += 1;
     
-            if &n.puzzle == &goal {
+            let curr_hash = n.puzzle.hash_u64();
+            visited.insert(curr_hash);
+    
+            if curr_hash == goal_hash {
                 return (Self::reconstruct_path(n), nodes);
             }
     
-            visited.insert(&n.puzzle);
-    
             n.puzzle.on_neighbors(|puzzle: Puzzle<N>| {
-                if !visited.contains(&puzzle) {
+                if !visited.contains(&puzzle.hash_u64()) {
                     let child = arena.alloc(Node::new_child(puzzle, n));
                     frontier.push(child);
                 }
@@ -160,17 +162,19 @@ impl SolverRc {
         let root = NodeRc::new_root(initial);
         frontier.push(Rc::new(root));
     
-        let goal = Puzzle::goal();
+        let goal = Puzzle::<N>::goal();
+        let goal_hash = goal.hash_u64();
     
         let mut nodes = 0;
         while let Some(n) = frontier.pop() {
             nodes += 1;
+
+            let curr_hash = n.puzzle.hash_u64();
+            visited.insert(curr_hash);
     
-            if &n.puzzle == &goal {
+            if curr_hash == goal_hash {
                 return (Self::reconstruct_path(n), nodes);
             }
-    
-            visited.insert(n.puzzle.hash_u64());
     
             n.puzzle.on_neighbors(|puzzle: Puzzle<N>| {
                 let hash = puzzle.hash_u64();
@@ -181,58 +185,6 @@ impl SolverRc {
             })
         }
     
-        (vec![], nodes)
-    }
-}
-
-pub struct SolverSlow {}
-
-// a "dumb" implementation to show how useful our fancy data structures are...
-impl SolverSlow {
-    pub fn find_path<const N: usize>(initial: Puzzle<N>) -> (Vec<Puzzle<N>>, u32) {
-        let mut visited: Vec<u64> = vec![];
-        let mut frontier: Vec<Rc<NodeRc<N>>> = vec![];
-
-        let root = NodeRc::new_root(initial);
-        frontier.push(Rc::new(root));
-
-        let goal = Puzzle::goal();
-
-        let mut nodes = 0;
-        while let Some(n) = frontier.pop() {
-            nodes += 1;
-
-            if &n.puzzle == &goal {
-                return (SolverRc::reconstruct_path(n), nodes);
-            }
-
-            visited.push(n.puzzle.hash_u64());
-
-            n.puzzle.on_neighbors(|puzzle: Puzzle<N>| {
-                let mut is_visited = false;
-                let hash = puzzle.hash_u64();
-                for h in &visited {
-                    if *h == hash {
-                        is_visited = true;
-                    }
-                }
-                if !is_visited {
-                    let child = NodeRc::new_child(puzzle, n.clone());
-                    let mut ins_index = None;
-                    for (i, n) in frontier.iter().enumerate().rev() {
-                        if child.f < n.f {
-                            ins_index = Some(i + 1);
-                            break
-                        }
-                    }
-                    match ins_index {
-                        None => frontier.insert(0, Rc::new(child)),
-                        Some(i) => frontier.insert(i, Rc::new(child))
-                    }
-                }
-            })
-        }
-
         (vec![], nodes)
     }
 }

@@ -8,17 +8,20 @@
 #include <vector>
 #include <memory>
 
-template<class T, int BLK_SZ = 40960>
+template<class T>
 class Arena {
 public:
     Arena() {
-        auto block = new char[BLK_SZ];
+        block_size = 40960;
+        offset = 0;
+        auto block = new char[block_size];
         blocks.push_back(block);
     }
 
     T* alloc() {
-        if (offset >= BLK_SZ) {
-            auto block = new char[BLK_SZ];
+        if (offset >= block_size) {
+            block_size *= 2;
+            auto block = new char[block_size];
             blocks.push_back(block);
             offset = 0;
         }
@@ -35,7 +38,8 @@ public:
     }
 private:
     std::vector<char*> blocks;
-    int offset = 0;
+    int offset;
+    int block_size;
 };
 
 #endif //CPP_ARENA_H

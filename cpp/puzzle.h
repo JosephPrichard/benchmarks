@@ -45,9 +45,9 @@ public:
 
     explicit Puzzle(const std::array<Tile, SIZE> tiles) : tiles(tiles) {};
    
-    explicit Puzzle(std::vector<Tile>& tiles_vec) {
+    explicit Puzzle(std::vector<Tile>& tiles) {
         for (int i = 0; i < SIZE; i++) {
-            tiles[i] = tiles_vec[i];
+            this->tiles[i] = tiles[i];
         }
     };
 
@@ -71,16 +71,19 @@ public:
         return puzzle;
     }
 
-    [[nodiscard]] Action get_action() const {
+    [[nodiscard]] 
+    Action get_action() const {
         return action;
     };
 
-    [[nodiscard]] Position pos_of_index(int index) const {
+    [[nodiscard]] 
+    Position pos_of_index(int index) const {
         return Position{index / N, index % N};
     }
 
     // 64 BIT HASH FOR AN ARRAY OF LENGTH 16 WHERE EACH ELEMENT IS 4 BITS
-    [[nodiscard]] unsigned long long hash_tiles() const {
+    [[nodiscard]] 
+    unsigned long long hash_tiles() const {
         unsigned long long hash = 0;
         for (int i = 0; i < SIZE; i++) {
             Tile tile = tiles[i];
@@ -90,7 +93,8 @@ public:
         return hash;
     }
 
-    [[nodiscard]] int heuristic() const {
+    [[nodiscard]] 
+    int heuristic() const {
         int h = 0;
         for (int i = 0; i < SIZE; i++) {
             Tile tile = this->tiles[i];
@@ -121,7 +125,8 @@ public:
         return new_puzzle;
     }
 
-    [[nodiscard]] Position find_zero() const {
+    [[nodiscard]] 
+    Position find_zero() const {
         for (int i = 0; i < SIZE; i++) {
             if (this->tiles[i] == 0) {
                 return pos_of_index(i);
@@ -130,7 +135,8 @@ public:
         throw std::invalid_argument("Puzzle should contain a zero");
     }
 
-    [[nodiscard]] Tile get_tile(int index) const {
+    [[nodiscard]] 
+    Tile get_tile(int index) const {
         return tiles[index];
     }
 
@@ -139,28 +145,36 @@ public:
         auto col = std::get<1>(pos);
         return tiles[row * N + col];
     }
+
+    static const std::array<direction, 4>& get_directions() {
+        const static std::array<direction, 4> DIRECTIONS =
+            {direction{Position{0, -1}, LEFT},
+            direction{Position{-1, 0}, UP},
+            direction{Position{1, 0}, DOWN},
+            direction{Position{0, 1}, RIGHT}};
+        return DIRECTIONS;
+    }
 private:
     std::array<Tile, SIZE> tiles;
     Action action = NONE;
 };
 
 template<std::size_t N = 3>
+using Path = std::tuple<std::vector<Puzzle<N>>, int>;
+
+template<std::size_t N = 3>
+using FindPathFunc = std::tuple<std::vector<Puzzle<N>>, int> (*)(Puzzle<N>);
+
+template<std::size_t N = 3>
 class Node {
 public:
     Node() : puzzle(Puzzle<N>()) {}
 
-    Node(Node<N> const& other) {
-        puzzle = other.puzzle;
-        g = other.g;
-        f = other.f;
-        prev = other.prev;
-    }
+    explicit Node(Puzzle<N>&& p) : puzzle(p) {}
 
-    explicit Node(Puzzle<N> puzzle) : puzzle(puzzle) {}
-
-    explicit Node(Puzzle<N> puzzle, Node<N>* prev) : puzzle(puzzle), prev(prev) {
+    explicit Node(Puzzle<N>&& p, Node<N>* prev) : puzzle(p), prev(prev) {
         g = prev->g + 1;
-        f = g + puzzle.heuristic();
+        f = g + p.heuristic();
     }
 
     const Puzzle<N>& get_puzzle() const {
@@ -171,7 +185,8 @@ public:
         return prev;
     }
 
-    [[nodiscard]] int get_fscore() const {
+    [[nodiscard]] 
+    int get_fscore() const {
         return f;
     }
 private:
@@ -182,16 +197,75 @@ private:
 };
 
 template<std::size_t N = 3>
+class SolverArena {
+public:
+    static Path<N> find_path(Puzzle<N> initial) {
+        Arena<Node<N>> arena;
+
+        std::unordered_map<unsigned long long, bool> visited;
+
+        auto cmp = [](Node<N>* lhs, Node<N>* rhs)
+            { return lhs->get_fscore() > rhs->get_fscore(); };
+        std::priority_queue<Node<N>*, std::vector<Node<N>*>, decltype(cmp)> frontier(cmp);
+
+        Node<N> initial_node(std::move(initial));
+        frontier.push(&initial_node);
+
+        const Puzzle<N>& goal = Puzzle<N>::get_goal();
+        auto goal_hash = goal.hash_tiles();
+
+        int nodes = 0;
+        while (!frontier.empty()) {
+            Node<N>* node = frontier.top();
+            const Puzzle<N>& curr_puzzle = node->get_puzzle();
+
+            frontier.pop();
+            nodes++;
+
+            auto curr_hash = curr_puzzle.hash_tiles();
+            visited[curr_hash] = true;
+
+            if (goal_hash == curr_hash) {
+                return Path<N>{reconstruct_path(node), nodes};
+            }
+
+            auto zero_pos = curr_puzzle.find_zero();
+
+            for (auto& direction : Puzzle<N>::get_directions()) {
+                auto d = std::get<0>(direction);
+                auto a = std::get<1>(direction);
+
+                auto new_pos = zero_pos + d;
+                if (Puzzle<N>::in_bounds(new_pos)) {
+                    auto next_puzzle = curr_puzzle.get_neighbor(new_pos, zero_pos, a);
+                    
+                    if (visited.count(next_puzzle.hash_tiles()) <= 0) {
+                        auto neighbor = new(arena.alloc()) Node<N>(std::move(next_puzzle), node);
+                        frontier.push(neighbor);
+                    }
+                }
+            }
+        }
+
+        return Path<N>{std::vector<Puzzle<N>>(), nodes};
+    }
+
+private:
+    static std::vector<Puzzle<N>> reconstruct_path(Node<N>* curr) {
+        std::vector<Puzzle<N>> path;
+        while (curr != nullptr) {
+            path.push_back(curr->get_puzzle());
+            curr = curr->get_prev();
+        }
+        std::reverse(path.begin(), path.end());
+        return path;
+    }
+};
+
+template<std::size_t N = 3>
 class NodeSp {
 public:
     NodeSp() : puzzle(Puzzle<N>()) {}
-
-    NodeSp(NodeSp<N> const& other) {
-        puzzle = other.puzzle;
-        g = other.g;
-        f = other.f;
-        prev = other.prev;
-    }
 
     explicit NodeSp(Puzzle<N> puzzle) : puzzle(puzzle) {}
 
@@ -208,7 +282,8 @@ public:
         return prev;
     }
 
-    [[nodiscard]] int get_fscore() const {
+    [[nodiscard]] 
+    int get_fscore() const {
         return f;
     }
 private:
@@ -216,86 +291,6 @@ private:
     int f = 0;
     Puzzle<N> puzzle;
     std::shared_ptr<NodeSp<N>> prev = nullptr;
-};
-
-template<std::size_t N = 3>
-using Path = std::tuple<std::vector<Puzzle<N>>, int>;
-
-template<std::size_t N = 3>
-using FindPathFunc = std::tuple<std::vector<Puzzle<N>>, int> (*)(Puzzle<N>);
-
-const std::array<direction, 4>& get_directions() {
-    const static std::array<direction, 4> DIRECTIONS =
-        {direction{Position{0, -1}, LEFT},
-        direction{Position{-1, 0}, UP},
-        direction{Position{1, 0}, DOWN},
-        direction{Position{0, 1}, RIGHT}};
-    return DIRECTIONS;
-}
-
-template<std::size_t N = 3>
-class SolverArena {
-public:
-    static Path<N> find_path(Puzzle<N> initial) {
-        Arena<Node<N>> arena;
-
-        std::unordered_map<unsigned long long, bool> visited;
-
-        auto cmp = [](Node<N>* lhs, Node<N>* rhs)
-            { return lhs->get_fscore() > rhs->get_fscore(); };
-        std::priority_queue<Node<N>*, std::vector<Node<N>*>, decltype(cmp)> frontier(cmp);
-
-        Node<N> initial_node(initial);
-        frontier.push(&initial_node);
-
-        const Puzzle<N>& goal = Puzzle<N>::get_goal();
-
-        int nodes = 0;
-        while (!frontier.empty()) {
-            Node<N>* node = frontier.top();
-            const Puzzle<N>& curr_puzzle = node->get_puzzle();
-
-            frontier.pop();
-            nodes++;
-
-            if (curr_puzzle == goal) {
-                return Path<N>{reconstruct_path(node), nodes};
-            }
-
-            visited[curr_puzzle.hash_tiles()] = true;
-
-            auto zero_pos = curr_puzzle.find_zero();
-
-            for (auto& direction : get_directions()) {
-                auto d = std::get<0>(direction);
-                auto a = std::get<1>(direction);
-
-                auto new_pos = zero_pos + d;
-                if (Puzzle<N>::in_bounds(new_pos)) {
-                    auto next_puzzle = curr_puzzle.get_neighbor(new_pos, zero_pos, a);
-                    
-                    if (visited.count(next_puzzle.hash_tiles()) <= 0) {
-                        auto neighbor = new(arena.alloc()) Node<N>(next_puzzle, node);
-                        frontier.push(neighbor);
-                    }
-                }
-            }
-        }
-
-        std::vector<Puzzle<N>> no_sol;
-        return Path<N>{no_sol, nodes};
-    }
-
-private:
-    static std::vector<Puzzle<N>> reconstruct_path(Node<N>* curr) {
-        std::vector<Puzzle<N>> path;
-        while (curr != nullptr) {
-            path.push_back(curr->get_puzzle());
-            curr = curr->get_prev();
-        }
-        std::reverse(path.begin(), path.end());
-        return path;
-    }
 };
 
 template<std::size_t N = 3>
@@ -329,7 +324,7 @@ public:
 
             auto zero_pos = curr_puzzle.find_zero();
 
-            for (auto& direction : get_directions()) {
+            for (auto& direction : Puzzle<N>::get_directions()) {
                 auto d = std::get<0>(direction);
                 auto a = std::get<1>(direction);
 
@@ -344,9 +339,8 @@ public:
                 }
             }
         }
-
-        std::vector<Puzzle<N>> no_sol;
-        return Path<N>{no_sol, nodes};
+        
+        return Path<N>{std::vector<Puzzle<N>>(), nodes};
     }
 
 private:

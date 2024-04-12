@@ -5,7 +5,7 @@ namespace npuzzle
 {
     public class PuzzleSolver
     {
-        private readonly Puzzle _goalState;
+        private readonly ulong _goalHash;
         public int Nodes { get; private set; }
 
         public PuzzleSolver(int boardSize)
@@ -18,7 +18,7 @@ namespace npuzzle
                 num++;
             }
 
-            _goalState = new Puzzle(goalPuzzle);
+            _goalHash =  new Puzzle(goalPuzzle).Hash();
         }
 
         private static int Heuristic(Puzzle puzzleState)
@@ -56,10 +56,12 @@ namespace npuzzle
             while (frontier.Count > 0)
             {
                 var currentState = frontier.Dequeue();
-                visited.Add(currentState.Hash());
                 Nodes += 1;
 
-                if (currentState.Equals(_goalState))
+                var currHash = currentState.Hash();
+                visited.Add(currHash);
+
+                if (currHash == _goalHash)
                 {
                     return ReconstructPath(currentState);
                 }

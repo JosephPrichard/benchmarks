@@ -51,7 +51,6 @@ fn run_puzzle<const N: usize>(puzzle: Puzzle<N>, flag: &str, i: usize) -> (f64, 
     let find_path = match flag {
         "arena" => solver::SolverArena::find_path::<N>,
         "rc" => solver::SolverRc::find_path::<N>,
-        "slow" => solver::SolverSlow::find_path::<N>,
         flag => panic!("Invalid flag: {} - must be 'arena' or 'rc'", flag)
     };
 

@@ -4,7 +4,6 @@
  */
 package src;
 
-import java.math.BigInteger;
 import java.util.*;
 
 /**
@@ -59,8 +58,9 @@ public class PuzzleSolver
         nodes = 0;
         while(!frontier.isEmpty()) {
             var currentState = frontier.poll();
-            visited.add(currentState.toString());
             nodes += 1;
+
+            visited.add(currentState.toString());
 
             if(currentState.equals(goalState)) {
                 return reconstructPath(currentState);

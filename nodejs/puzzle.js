@@ -1,18 +1,18 @@
 const fs = require('fs');
 
-function index_of_pos(pos, dim) {
+function indexOfPos(pos, dim) {
     return pos.row * dim + pos.col;
 }
 
-function pos_of_index(i, dim) {
+function posOfIndex(i, dim) {
     return { row: Math.floor(i / dim), col: i % dim };
 }
 
-function in_bounds(pos, dim) {
+function inBounds(pos, dim) {
     return pos.row >= 0 && pos.row < dim && pos.col >= 0 && pos.col < dim;
 }
 
-function add_positions(pos1, pos2) {
+function addPositions(pos1, pos2) {
     return { row: pos1.row + pos2.row, col: pos1.col + pos2.col };
 }
 
@@ -48,24 +48,24 @@ class Puzzle {
         for (let i = 0; i < this.tiles.length; i++) {
             const t = this.tiles[i];
             if (t != 0) {
-                const pos1 = pos_of_index(i, this.dim);
-                const pos2 = pos_of_index(t, this.dim);
+                const pos1 = posOfIndex(i, this.dim);
+                const pos2 = posOfIndex(t, this.dim);
                 h += Math.abs(pos2.row - pos1.row) + Math.abs(pos2.col - pos1.col);
             }
         }
         return h;
     }
 
-    find_zero() {
+    findZero() {
         for (let i = 0; i < this.tiles.length; i++) {
             if (this.tiles[i] === 0) {
-                return pos_of_index(i, this.dim);
+                return posOfIndex(i, this.dim);
             }
         }
         throw new Error("Puzzles should contain a 0 tile");
     }
 
-    hash() {
+    toString() {
         return this.tiles.join('');
     }
 
@@ -85,29 +85,29 @@ class Puzzle {
     }
 
     neighbors(callback) {
-        const zero_pos = this.find_zero();
-        const zero_index = index_of_pos(zero_pos, this.dim);
+        const zero_pos = this.findZero();
+        const zero_index = indexOfPos(zero_pos, this.dim);
 
         for (const { dir, action } of directions) {
-            const next_pos = add_positions(zero_pos, dir);
-            const next_index = index_of_pos(next_pos, this.dim);
+            const next_pos = addPositions(zero_pos, dir);
+            const next_index = indexOfPos(next_pos, this.dim);
 
-            if (!in_bounds(next_pos, this.dim)) {
+            if (!inBounds(next_pos, this.dim)) {
                 continue;
             }
 
-            const next_puzzle = new Puzzle([...this.tiles]);
+            const nextPuzzle = new Puzzle([...this.tiles]);
 
-            const temp = next_puzzle.tiles[zero_index];
-            next_puzzle.tiles[zero_index] = next_puzzle.tiles[next_index];
-            next_puzzle.tiles[next_index] = temp;
+            const temp = nextPuzzle.tiles[zero_index];
+            nextPuzzle.tiles[zero_index] = nextPuzzle.tiles[next_index];
+            nextPuzzle.tiles[next_index] = temp;
 
-            next_puzzle.prev = this;
-            next_puzzle.action = action;
-            next_puzzle.g = this.g + 1;
-            next_puzzle.f = next_puzzle.g + next_puzzle.heuristic();
+            nextPuzzle.prev = this;
+            nextPuzzle.action = action;
+            nextPuzzle.g = this.g + 1;
+            nextPuzzle.f = nextPuzzle.g + nextPuzzle.heuristic();
 
-            callback(next_puzzle);
+            callback(nextPuzzle);
         }
     }
 }
@@ -186,7 +186,7 @@ class Heap {
     }
 }
 
-function create_goal(size) {
+function createGoal(size) {
     const tiles = [];
     for (let i = 0; i < size; i++) {
         tiles.push(i);
@@ -194,7 +194,7 @@ function create_goal(size) {
     return tiles;
 }
 
-function reconstruct_path(curr) {
+function reconstructPath(curr) {
     const path = [];
     while (curr !== null) {
         path.push(curr);
@@ -204,31 +204,31 @@ function reconstruct_path(curr) {
     return path;
 }
 
-function find_path(initial) {
+function findPath(initial) {
     const visited = {};
     const frontier = new Heap((p1, p2) => p1.f < p2.f);
     frontier.push(initial);
 
-    const goal = create_goal(initial.tiles.length);
+    const goal = createGoal(initial.tiles.length);
 
     let nodes = 0;
     while (!frontier.isEmpty()) {
-        const curr_puzzle = frontier.pop();
+        const currPuzzle = frontier.pop();
         nodes++;
 
-        if (curr_puzzle.equals(goal)) {
-            return { path: reconstruct_path(curr_puzzle), nodes };
+        if (currPuzzle.equals(goal)) {
+            return { path: reconstructPath(currPuzzle), nodes };
         }
 
-        visited[curr_puzzle.hash()] = true;
+        visited[currPuzzle.toString()] = true;
 
-        const on_neighbor = (neighbor) => {
-            if (!visited[neighbor.hash()]) {
+        const onNeighbor = (neighbor) => {
+            if (!visited[neighbor.toString()]) {
                 frontier.push(neighbor);
             }
         };
 
-        curr_puzzle.neighbors(on_neighbor);
+        currPuzzle.neighbors(onNeighbor);
     }
 
     return { path: [], nodes };
@@ -236,7 +236,7 @@ function find_path(initial) {
 
 function read_puzzles(s) {
     const puzzles = [];
-    let curr_tiles = [];
+    let currTiles = [];
 
     const lines = s.split("\n");
     for (const line of lines) {
@@ -244,12 +244,12 @@ function read_puzzles(s) {
 
         if (tokens.length > 1) {
             for (const token of tokens) {
-                curr_tiles.push(parseInt(token));
+                currTiles.push(parseInt(token));
             }
         } else {
-            if (curr_tiles.length > 0) {
-                puzzles.push(new Puzzle(curr_tiles));
-                curr_tiles = [];
+            if (currTiles.length > 0) {
+                puzzles.push(new Puzzle(currTiles));
+                currTiles = [];
             }
         }
     }
@@ -278,7 +278,7 @@ function main() {
     for (const puzzle of puzzles) {
         const start = process.hrtime.bigint();
 
-        const { path, nodes } = find_path(puzzle);
+        const { path, nodes } = findPath(puzzle);
 
         const end = process.hrtime.bigint();
         const time = Number(end - start) / 1e6;

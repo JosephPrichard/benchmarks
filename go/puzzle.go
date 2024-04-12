@@ -40,7 +40,7 @@ func (pos Position) Add(rhs Position) Position {
 	return Position{row: pos.row + rhs.row, col: pos.col + rhs.col}
 }
 
-type Tile = byte
+type Tile = uint8
 
 type Puzzle struct {
 	prev   *Puzzle
@@ -135,13 +135,17 @@ func (puzzle *Puzzle) FindZero() Position {
 	panic("Puzzle contains no zero - this should never happen")
 }
 
-func (puzzle *Puzzle) Hash() uint64 {
+func HashTiles(tiles []Tile) uint64 {
 	var hash uint64;
-    for i, tile := range puzzle.tiles {
+    for i, tile := range tiles {
         mask := (uint64(tile)) << (i * 4);
         hash = (hash | mask);
     }
     return hash;
+}
+
+func (puzzle *Puzzle) Hash() uint64 {
+	return HashTiles(puzzle.tiles)
 }
 
 type Direction struct {
@@ -226,15 +230,17 @@ func FindPath(initial Puzzle) ([]Puzzle, int) {
 	heap.Init(&frontier)
 
 	goal := NewGoal(len(initial.tiles))
+	goalHash := HashTiles(goal)
 
 	nodes := 0
 	for frontier.Len() > 0 {
 		puzzle := heap.Pop(&frontier).(*Puzzle)
 		nodes += 1
 
-		visited[puzzle.Hash()] = true
+		currHash := puzzle.Hash()
+		visited[currHash] = true
 
-		if Equals(puzzle.tiles, goal) {
+		if currHash == goalHash {
 			return ReconstructPath(puzzle), nodes
 		}
 

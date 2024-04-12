@@ -8,8 +8,6 @@ package src;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.PrintStream;
-import java.math.BigDecimal;
-import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
@@ -29,9 +27,15 @@ public class Puzzle
     private String action = "Start";
     private int f = 0;
     private int g = 0;
+    private int dimension = 0;
 
-    public Puzzle(byte[] puzzle) {
-        this.tiles = puzzle;
+    public Puzzle(byte[] tiles) {
+        this(tiles, (int) Math.sqrt(tiles.length));
+    }
+
+    public Puzzle(byte[] tiles, int dimension) {
+        this.tiles = tiles;
+        this.dimension = dimension;
     }
 
     public static Puzzle ofList(List<Integer> puzzleList) {
@@ -78,7 +82,7 @@ public class Puzzle
     }
 
     public int getDimension() {
-        return (int) Math.sqrt(length());
+        return dimension;
     }
 
     public Puzzle getParent() {
@@ -143,15 +147,15 @@ public class Puzzle
                 continue;
             }
 
-            var nextPuzzle = new byte[tiles.length];
-            System.arraycopy(tiles, 0, nextPuzzle, 0, tiles.length);
+            var nextTiles = new byte[tiles.length];
+            System.arraycopy(tiles, 0, nextTiles, 0, tiles.length);
 
             var nextIndex = nextRow * dimension + nextCol;
-            var temp = nextPuzzle[zeroIndex];
-            nextPuzzle[zeroIndex] = nextPuzzle[nextIndex];
-            nextPuzzle[nextIndex] = temp;
+            var temp = nextTiles[zeroIndex];
+            nextTiles[zeroIndex] = nextTiles[nextIndex];
+            nextTiles[nextIndex] = temp;
 
-            var neighbor = new Puzzle(nextPuzzle);
+            var neighbor = new Puzzle(nextTiles, dimension);
             neighbor.parent = this;
             neighbor.action = ACTIONS[i];
             neighbor.g = g + 1;

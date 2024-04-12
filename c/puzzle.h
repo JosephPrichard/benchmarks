@@ -66,6 +66,7 @@ hash_table_t* new_ht() {
         exit(1);
     }
     ht->capacity = next_prime(10);
+    // calloc will make sure this is 0 initialized
     ht->table = (unsigned long long*) calloc(ht->capacity, sizeof(unsigned long long));
     ht->size = 0;
     if (ht->table == NULL) {

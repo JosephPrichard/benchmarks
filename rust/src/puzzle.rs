@@ -1,4 +1,4 @@
-use std::hash::{DefaultHasher, Hash, Hasher};
+use std::hash::{Hash, Hasher};
 use std::{fmt, ops};
 use std::fmt::Formatter;
 
@@ -125,12 +125,6 @@ impl<const N: usize> Puzzle<N> {
             }
         }
     }
-
-    // pub fn hash_u64(&self) -> u64 {
-    //     let mut hasher = DefaultHasher::new();
-    //     self.hash(&mut hasher);
-    //     hasher.finish()
-    // }
 
     pub fn hash_u64(&self) -> u64 {
         let mut hash = 0u64;
