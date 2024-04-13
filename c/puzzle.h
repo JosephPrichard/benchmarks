@@ -38,29 +38,29 @@ int next_prime(int n) {
     }
 }
 
-typedef char tile_t;
+typedef char Tile;
 
-typedef tile_t board_t[MAX_SIZE];
+typedef Tile Board[MAX_SIZE];
 
 // 64 BIT HASH FOR AN ARRAY OF LENGTH 16 WHERE EACH ELEMENT IS 4 BITS
-unsigned long long hash_board(const board_t brd, int size) {
+unsigned long long hash_board(const Board brd, int size) {
     unsigned long long hash = 0;
     for (int i = 0; i < size; i++) {
-        tile_t tile = brd[i];
+        Tile tile = brd[i];
         long long mask = ((unsigned long long) tile) << (i * 4);
         hash = (hash | mask);
     }
     return hash;
 }
 
-typedef struct hash_table_t {
+typedef struct HashTable {
     unsigned long long* table; // 64 BIT KEYS
     int size;
     int capacity;
-} hash_table_t;
+} HashTable;
 
-hash_table_t* new_ht() {
-    hash_table_t* ht = (hash_table_t*) malloc(sizeof(hash_table_t));
+HashTable* new_ht() {
+    HashTable* ht = (HashTable*) malloc(sizeof(HashTable));
     if (ht == NULL) {
         printf("Failed to allocate hash_table\n");
         exit(1);
@@ -76,11 +76,11 @@ hash_table_t* new_ht() {
     return ht;
 }
 
-unsigned long long probe(hash_table_t* ht, unsigned long long h, int i) {
+unsigned long long probe(HashTable* ht, unsigned long long h, int i) {
     return (h + (unsigned long long) i) % ((unsigned long long) ht->capacity); // linear probe
 }
 
-void probe_ht(hash_table_t* ht, unsigned long long key) {
+void probe_ht(HashTable* ht, unsigned long long key) {
     for (int i = 0;; i++) {
         unsigned long long p = probe(ht, key, i);
         if (ht->table[p] == 0) {
@@ -90,7 +90,7 @@ void probe_ht(hash_table_t* ht, unsigned long long key) {
     }
 }
 
-void rehash(hash_table_t* ht) {
+void rehash(HashTable* ht) {
     int old_capacity = ht->capacity;
     unsigned long long* old_table = ht->table;
 
@@ -111,7 +111,7 @@ void rehash(hash_table_t* ht) {
     free(old_table);
 }
 
-void insert_into_ht(hash_table_t* ht, unsigned long long key) {
+void insert_into_ht(HashTable* ht, unsigned long long key) {
     if ((float) ht->size / (float) ht->capacity > LF_THRESHOLD) {
         rehash(ht);
     }
@@ -119,7 +119,7 @@ void insert_into_ht(hash_table_t* ht, unsigned long long key) {
     ht->size++;
 }
 
-int ht_has_key(hash_table_t* ht, unsigned long long key) {
+int ht_has_key(HashTable* ht, unsigned long long key) {
     for (int i = 0;; i++) {
         unsigned long long p = probe(ht, key, i);
         if (ht->table[p] == 0) {
@@ -130,66 +130,66 @@ int ht_has_key(hash_table_t* ht, unsigned long long key) {
     }
 }
 
-typedef struct priorityq_t {
+typedef struct Heap {
     int* min_heap;
     int size;
     int capacity;
-} priorityq_t;
+} Heap;
 
-priorityq_t* new_pq() {
-    priorityq_t* pq = (priorityq_t*) malloc(sizeof(priorityq_t));
-    if (pq == NULL) {
+Heap* new_pq() {
+    Heap* heap = (Heap*) malloc(sizeof(Heap));
+    if (heap == NULL) {
         printf("Failed to allocate priority queue\n");
         exit(1);
     }
-    pq->capacity = 10;
-    pq->min_heap = (int*) malloc(sizeof(int) * pq->capacity);
-    pq->size = 0;
-    if (pq->min_heap == NULL) {
+    heap->capacity = 10;
+    heap->min_heap = (int*) malloc(sizeof(int) * heap->capacity);
+    heap->size = 0;
+    if (heap->min_heap == NULL) {
         printf("Failed to allocate priority queue heap\n");
         exit(1);
     }
-    return pq;
+    return heap;
 }
 
-void ensure_capacity(priorityq_t* pq) {
-    if (pq->size >= pq->capacity) {
-        pq->capacity = pq->capacity * 2;
-        int* min_heap = (int*) realloc(pq->min_heap, sizeof(int) * pq->capacity);
+void ensure_capacity(Heap* heap) {
+    if (heap->size >= heap->capacity) {
+        heap->capacity = heap->capacity * 2;
+        int* min_heap = (int*) realloc(heap->min_heap, sizeof(int) * heap->capacity);
         if (min_heap == NULL) {
             printf("priority queue reallocation failed\n");
             exit(1);
         }
-        pq->min_heap = min_heap;
+        heap->min_heap = min_heap;
     }
 }
 
-typedef enum move_t {
+typedef enum Move {
     NONE, UP, DOWN, LEFT, RIGHT
-} move_t;
+} Move;
 
-typedef struct puzzle_t {
+typedef struct Puzzle {
     int parent_offset;
-    board_t board;
-    move_t move;
+    Board board;
+    Move move;
     int g;
     int f;
-} puzzle_t;
+} Puzzle;
 
-void push_pq(priorityq_t* pq, puzzle_t* arena, int arena_offset) {
-    ensure_capacity(pq);
+void push_heap(Heap* heap, Puzzle* arena, int arena_offset) {
+    ensure_capacity(heap);
 
-    pq->min_heap[pq->size] = arena_offset;
+    heap->min_heap[heap->size] = arena_offset;
 
-    int pos = pq->size;
+    int pos = heap->size;
     int parent = (pos - 1) / CHILD_CNT;
 
     while (parent >= 0) {
-        if (arena[pq->min_heap[pos]].f < arena[pq->min_heap[parent]].f) {
+        if (arena[heap->min_heap[pos]].f < arena[heap->min_heap[parent]].f) {
 
-            int temp = pq->min_heap[pos];
-            pq->min_heap[pos] = pq->min_heap[parent];
-            pq->min_heap[parent] = temp;
+            int temp = heap->min_heap[pos];
+            heap->min_heap[pos] = heap->min_heap[parent];
+            heap->min_heap[parent] = temp;
 
             pos = parent;
             parent = (pos - 1) / CHILD_CNT;
@@ -197,54 +197,54 @@ void push_pq(priorityq_t* pq, puzzle_t* arena, int arena_offset) {
             parent = -1;
         }
     }
-    pq->size++;
+    heap->size++;
 }
 
-int pop_pq(priorityq_t* pq, puzzle_t* arena) {
-    if (pq->size == 0) {
+int pop_heap(Heap* heap, Puzzle* arena) {
+    if (heap->size == 0) {
         printf("Can't pop an empty priority queue\n");
         exit(1);
     }
 
-    int top = pq->min_heap[0];
-    pq->min_heap[0] = pq->min_heap[pq->size - 1];
+    int top = heap->min_heap[0];
+    heap->min_heap[0] = heap->min_heap[heap->size - 1];
 
     int pos = 0;
     for (;;) {
         int first_child = CHILD_CNT * pos + 1;
         int child = first_child;
-        if (child >= pq->size) {
+        if (child >= heap->size) {
             break;
         }
 
         for (int i = 1; i < CHILD_CNT; i++) {
             int new_child = first_child + i;
-            if (new_child >= pq->size) {
+            if (new_child >= heap->size) {
                 break;
             }
-            if(arena[pq->min_heap[new_child]].f < arena[pq->min_heap[child]].f) {
+            if(arena[heap->min_heap[new_child]].f < arena[heap->min_heap[child]].f) {
                 child = new_child;
             }
         }
 
-        if (arena[pq->min_heap[pos]].f > arena[pq->min_heap[child]].f) {
-            int temp = pq->min_heap[pos];
-            pq->min_heap[pos] = pq->min_heap[child];
-            pq->min_heap[child] = temp;
+        if (arena[heap->min_heap[pos]].f > arena[heap->min_heap[child]].f) {
+            int temp = heap->min_heap[pos];
+            heap->min_heap[pos] = heap->min_heap[child];
+            heap->min_heap[child] = temp;
 
             pos = child;
         } else {
             break;
         }
     }
-    pq->size--;
+    heap->size--;
     return top;
 }
 
 static const int NEIGHBOR_OFFSETS[NEIGHBOR_CNT][2] = {{0, 1}, {1, 0}, {0, -1}, {-1, 0}};
 
-int move_board(board_t brd_in, board_t brd_out, int zero_index, int neighbor_index, int rows) {
-    memcpy(brd_out, brd_in, sizeof(board_t));
+int move_board(Board brd_in, Board brd_out, int zero_index, int neighbor_index, int rows) {
+    memcpy(brd_out, brd_in, sizeof(Board));
 
     int zero_row = zero_index / rows;
     int zero_col = zero_index % rows;
@@ -259,13 +259,13 @@ int move_board(board_t brd_in, board_t brd_out, int zero_index, int neighbor_ind
         return 1;
     }
 
-    tile_t temp = brd_out[zero_index];
+    Tile temp = brd_out[zero_index];
     brd_out[zero_index] = brd_out[swap_index];
     brd_out[swap_index] = temp;
     return 0;
 }
 
-int find_zero(const board_t brd, int size) {
+int find_zero(const Board brd, int size) {
     for (int i = 0; i < size; i++) {
         if (brd[i] == 0) {
             return i;
@@ -275,11 +275,11 @@ int find_zero(const board_t brd, int size) {
     exit(1);
 }
 
-int heuristic(const board_t brd, int rows) {
+int heuristic(const Board brd, int rows) {
     int h = 0;
     int size = rows * rows;
     for (int i = 0; i < size; i++) {
-        tile_t tile = brd[i];
+        Tile tile = brd[i];
         if (tile != 0) {
             int row1 = i / rows;
             int col1 = i % rows;
@@ -292,14 +292,14 @@ int heuristic(const board_t brd, int rows) {
     return h;
 }
 
-typedef struct action_t {
-    board_t board;
-    move_t move;
-} action_t;
+typedef struct Action {
+    Board board;
+    Move move;
+} Action;
 
 static const char* MOVE_STRINGS[] = {"Start", "Up", "Down", "Left", "Right"};
 
-void print_board(const board_t board, int rows, FILE* file) {
+void print_board(const Board board, int rows, FILE* file) {
     for (int i = 0; i < rows * rows; i++) {
         if (board[i] != 0) {
             fprintf(file, "%d ", board[i]);
@@ -312,90 +312,91 @@ void print_board(const board_t board, int rows, FILE* file) {
     }
 }
 
-void print_action(const action_t* action, int rows, FILE* file) {
+void print_action(const Action* action, int rows, FILE* file) {
     fprintf(file, "%s\n", MOVE_STRINGS[action->move]);
 }
 
-typedef struct result_t {
-    action_t solution[LONGEST_SOL];
+typedef struct Run {
+    Board initial_brd;
+    Board goal_brd;
+    int rows;
+    Action solution[LONGEST_SOL];
     int steps;
     double time;
     int nodes;
-} result_t;
+} Run;
 
-void print_solution(result_t result, int rows) {
-    for (int i = result.steps - 1; i >= 0; i--) {
-        action_t* a = &result.solution[i];
-        print_action(a, rows, stdout);
+void print_solution(Run* run) {
+    for (int i = run->steps - 1; i >= 0; i--) {
+        Action* a = &run->solution[i];
+        print_action(a, run->rows, stdout);
     }
-    printf("Solved in %d steps\n\n", result.steps - 1);
+    printf("Solved in %d steps\n\n", run->steps - 1);
 }
 
-void reconstruct_path(puzzle_t* arena, int leaf_offset, result_t* result) {
+void reconstruct_path(Puzzle* arena, int leaf_offset, Run* run) {
     int i;
     for(i = 0; leaf_offset != -1; i++) {
         if (i >= LONGEST_SOL) {
             printf("An optimal solution should be no longer than %d steps\n", LONGEST_SOL);
             exit(1);
         }
-        puzzle_t* puzzle = &arena[leaf_offset];
-        memcpy(result->solution[i].board, puzzle->board, sizeof(board_t));
-        result->solution[i].move = puzzle->move;
+        Puzzle* puzzle = &arena[leaf_offset];
+        Action* solution = &run->solution[i];
+
+        memcpy(solution->board, puzzle->board, sizeof(Board));
+        solution->move = puzzle->move;
         leaf_offset = puzzle->parent_offset;
     }
-    result->steps = i;
+    run->steps = i;
 }
 
-typedef struct board_input_t {
-    board_t initial_brd;
-    board_t goal_brd;
-    int rows;
-} board_input_t;
+static const Move NEIGHBOR_MOVES[NEIGHBOR_CNT] = {RIGHT, DOWN, LEFT, UP};
 
-static const move_t NEIGHBOR_MOVES[NEIGHBOR_CNT] = {RIGHT, DOWN, LEFT, UP};
+void solve(Run* run) {
+    run->nodes = 0;
 
-result_t solve(const board_input_t in) {
-    result_t result = {.nodes = 0};
-    int size = in.rows * in.rows;
+    int rows = run->rows;
+    int size = rows * rows;
 
-    unsigned long long goal_hash = hash_board(in.goal_brd, size);
+    unsigned long long goal_hash = hash_board(run->goal_brd, size);
 
     int arena_size = INITIAL_ARENA_SIZE;
     int arena_offset = 0;
-    puzzle_t* arena = (puzzle_t*) malloc(sizeof(puzzle_t) * arena_size);
+    Puzzle* arena = (Puzzle*) malloc(sizeof(Puzzle) * arena_size);
 
-    priorityq_t* open_set = new_pq();
-    hash_table_t* closed_set = new_ht();
+    Heap* open_set = new_pq();
+    HashTable* closed_set = new_ht();
 
-    puzzle_t* root = &arena[arena_offset];
-    memcpy(root->board, in.initial_brd, sizeof(board_t));
+    Puzzle* root = &arena[arena_offset];
+    memcpy(root->board, run->initial_brd, sizeof(Board));
     root->move = NONE;
     root->parent_offset = -1;
     root->f = 0;
     root->g = 0;
 
-    push_pq(open_set, arena, arena_offset);
+    push_heap(open_set, arena, arena_offset);
     arena_offset++;
 
     while(open_set->size > 0) {
-        int cpuz_offset = pop_pq(open_set, arena);
-        puzzle_t* cpuz = &arena[cpuz_offset];
+        int cpuz_offset = pop_heap(open_set, arena);
+        Puzzle* cpuz = &arena[cpuz_offset];
 
         unsigned long long current_hash = hash_board(cpuz->board, size);
         insert_into_ht(closed_set, current_hash);
 
-        result.nodes += 1;
+        run->nodes += 1;
 
         if (current_hash == goal_hash) {
-            reconstruct_path(arena, cpuz_offset, &result);
+            reconstruct_path(arena, cpuz_offset, run);
             break;
         }
 
         int zero_index = find_zero(cpuz->board, size);
 
         for (int i = 0; i < NEIGHBOR_CNT; i++) {
-            board_t nboard = {0};
-            if (move_board(cpuz->board, nboard, zero_index, i, in.rows) != 0) {
+            Board nboard = {0};
+            if (move_board(cpuz->board, nboard, zero_index, i, rows) != 0) {
                 continue;
             }
 
@@ -405,7 +406,7 @@ result_t solve(const board_input_t in) {
             if (not_visited) {
                 if (arena_offset >= arena_size) {
                     arena_size *= 2;
-                    puzzle_t* next_arena = (puzzle_t*) realloc(arena, sizeof(puzzle_t) * arena_size);
+                    Puzzle* next_arena = (Puzzle*) realloc(arena, sizeof(Puzzle) * arena_size);
                     if (arena == NULL) {
                         printf("arena reallocation failed\n");
                         exit(1);
@@ -414,14 +415,14 @@ result_t solve(const board_input_t in) {
                     cpuz = &arena[cpuz_offset]; // WE NEED TO RECALCULATE THIS POINTER DUE TO REALLOC
                 }
 
-                puzzle_t* npuz = &arena[arena_offset];
-                memcpy(npuz->board, nboard, sizeof(board_t));
+                Puzzle* npuz = &arena[arena_offset];
+                memcpy(npuz->board, nboard, sizeof(Board));
                 npuz->parent_offset = cpuz_offset;
                 npuz->g = cpuz->g + 1;
-                npuz->f = npuz->g + heuristic(nboard, in.rows);
+                npuz->f = npuz->g + heuristic(nboard, rows);
                 npuz->move = NEIGHBOR_MOVES[i];
 
-                push_pq(open_set, arena, arena_offset);
+                push_heap(open_set, arena, arena_offset);
                 arena_offset++;
             }
         }
@@ -432,6 +433,4 @@ result_t solve(const board_input_t in) {
     free(open_set->min_heap);
     free(open_set);
     free(arena);
-
-    return result;
 }

@@ -108,7 +108,7 @@ impl<const N: usize> Puzzle<N> {
         h
     }
 
-    pub fn on_neighbors<F: FnMut(Self) -> ()>(&self, mut f: F) {
+    pub fn on_neighbors<F: FnMut(Self) -> ()>(&self, mut func: F) {
         let zero_pos = self.find_zero();
         for (d_pos, action) in DIRECTIONS {
             let new_pos = zero_pos + d_pos;
@@ -121,7 +121,7 @@ impl<const N: usize> Puzzle<N> {
     
                 new_puzzle.action = action;
     
-                f(new_puzzle);
+                func(new_puzzle);
             }
         }
     }

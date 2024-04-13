@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -136,12 +138,12 @@ func (puzzle *Puzzle) FindZero() Position {
 }
 
 func HashTiles(tiles []Tile) uint64 {
-	var hash uint64;
-    for i, tile := range tiles {
-        mask := (uint64(tile)) << (i * 4);
-        hash = (hash | mask);
-    }
-    return hash;
+	var hash uint64
+	for i, tile := range tiles {
+		mask := (uint64(tile)) << (i * 4)
+		hash = (hash | mask)
+	}
+	return hash
 }
 
 func (puzzle *Puzzle) Hash() uint64 {
@@ -295,41 +297,110 @@ func ReadPuzzles(path string) []Puzzle {
 	return puzzles
 }
 
+type Solution struct {
+	time  float64
+	nodes int
+	path  []Puzzle
+}
+
+func FindPaths(puzzles []Puzzle) []Solution {
+	var solutions []Solution
+	for _, puzzle := range puzzles {
+		start := time.Now()
+		solution, nodes := FindPath(puzzle)
+		duration := time.Since(start).Microseconds()
+
+		time := float64(duration) / 1000.0
+
+		solutions = append(solutions, Solution{
+			time:  time,
+			nodes: nodes,
+			path:  solution,
+		})
+	}
+	return solutions
+}
+
+func FindPathsParallel(puzzles []Puzzle) []Solution {
+	solutions := make([]Solution, len(puzzles))
+
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, runtime.NumCPU())
+
+	for i, puzzle := range puzzles {
+		wg.Add(1)
+		go func(i int, puzzle Puzzle) {
+			defer wg.Done()
+
+			sem <- struct{}{}
+
+			start := time.Now()
+			solution, nodes := FindPath(puzzle)
+			duration := time.Since(start).Microseconds()
+
+			time := float64(duration) / 1000.0
+
+			solutions[i] = Solution{
+				time:  time,
+				nodes: nodes,
+				path:  solution,
+			}
+
+			<-sem
+		}(i, puzzle)
+	}
+
+	wg.Wait()
+	return solutions
+}
+
 func main() {
 	if len(os.Args) < 2 {
 		fmt.Println("Needs at least argument for input file")
 		os.Exit(1)
 	}
-	
+
 	inputFile := os.Args[1]
 
-	var results []struct{float64; int}
+	flag := "seq"
+	if len(os.Args) >= 3 {
+		flag = os.Args[2]
+	}
 
 	puzzles := ReadPuzzles(inputFile)
 
-	for i, puzzle := range puzzles {
-		start := time.Now()
-		solution, nodes := FindPath(puzzle)
-		duration := time.Since(start).Microseconds()
+	start := time.Now()
 
-		time := float64(duration)/1000.0
-		results = append(results, struct{float64; int}{time, nodes})
+	var solutions []Solution
+	if flag == "seq" {
+		solutions = FindPaths(puzzles)
+	} else if flag == "par" {
+		solutions = FindPathsParallel(puzzles)
+	} else {
+		fmt.Printf("Parallelism flag must be par or seq, got %s \n", flag)
+		os.Exit(1)
+	}
 
+	duration := time.Since(start).Microseconds()
+	eteTime := float64(duration) / 1000.0
+
+	for i, s := range solutions {
 		fmt.Printf("Solution for puzzle %d\n", i+1)
-		for _, puzzle := range solution {
+		for _, puzzle := range s.path {
 			fmt.Print(puzzle.PrintAction())
 		}
 
-		fmt.Printf("Solved in %d steps\n\n", len(solution)-1)
+		fmt.Printf("Solved in %d steps\n\n", len(s.path)-1)
 	}
 
 	var totalTime float64
 	var totalNodes int
-	for i, result := range results {
-		fmt.Printf("Puzzle %d: %f ms, %d nodes\n", i+1, result.float64, result.int)
-		totalTime += result.float64
-		totalNodes += result.int
+	for i, s := range solutions {
+		fmt.Printf("Puzzle %d: %f ms, %d nodes\n", i+1, s.time, s.nodes)
+		totalTime += s.time
+		totalNodes += s.nodes
 	}
+	fmt.Printf("\nTotal: %f ms, %d nodes\n", totalTime, totalNodes)
 
-	fmt.Printf("Total: %f ms, %d nodes\n", totalTime, totalNodes)
+	fmt.Printf("End-to-end: %f ms\n", eteTime)
 }

@@ -1,6 +1,11 @@
 package src;
 
 import java.io.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
 
 /**
  *
@@ -8,7 +13,57 @@ import java.io.*;
  */
 public class Main
 {
-    public static void main(String[] args) throws IOException {
+    private static double nanosToMs(long nanos) {
+        return ((double) nanos) / 1_000_000;
+    }
+
+    private static List<Solution> runSolvers(List<Puzzle> states) {
+        List<Solution> solutions = new ArrayList<>();
+        for (var initialState : states) {
+            var startTime = System.nanoTime();
+
+            var solver = new PuzzleSolver(initialState.length());
+            var solution = solver.findSolution(initialState);
+
+            var time = nanosToMs(System.nanoTime() - startTime);
+            var nodes = solver.getNodes();
+
+            solutions.add(new Solution(time, nodes, solution));
+        }
+        return solutions;
+    }
+
+    private static List<Solution> runSolversParallel(List<Puzzle> states) throws InterruptedException, ExecutionException {
+        var tp = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+        List<CompletableFuture<Solution>> futures = new ArrayList<>();
+
+        for (Puzzle state : states) {
+            var future = CompletableFuture.supplyAsync(() -> {
+                var startTime = System.nanoTime();
+
+                var solver = new PuzzleSolver(state.length());
+                var solution = solver.findSolution(state);
+
+                var time = nanosToMs(System.nanoTime() - startTime);
+                var nodes = solver.getNodes();
+
+                return new Solution(time, nodes, solution);
+            }, tp);
+            futures.add(future);
+        }
+
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).get();
+
+        List<Solution> solutions = new ArrayList<>();
+        for (var future : futures) {
+            solutions.add(future.get());
+        }
+
+        tp.shutdown();
+        return solutions;
+    }
+
+    public static void main(String[] args) throws IOException, InterruptedException, ExecutionException {
         if (args.length < 1) {
             System.out.println("Need at least 1 program argument");
             System.exit(1);
@@ -20,41 +75,50 @@ public class Main
             System.exit(1);
         }
 
+        var flag = "seq";
+        if (args.length >= 2) {
+            flag = args[1];
+        }
+
         var states = Puzzle.fromFile(inputFile);
 
-        var times = new double[states.size()];
-        var nodeResults = new int[states.size()];
+        var startTime = System.nanoTime();
 
-        for (var i = 0; i < states.size(); i++) {
-            var initialState = states.get(i);
+        var solutions = switch (flag) {
+            case "seq" -> runSolvers(states);
+            case "par" -> runSolversParallel(states);
+            default -> {
+                System.out.println("Flag must be seq or par, got " + flag);
+                System.exit(1);
+                yield null;
+            }
+        };
 
-            var startTime = System.nanoTime();
-
-            var solver = new PuzzleSolver(initialState.length());
-            var solution = solver.findSolution(initialState);
-
-            var time = System.nanoTime() - startTime;
-            var nodes = solver.getNodes();
-
-            times[i] = ((double) time) / 1_000_000;
-            nodeResults[i] = nodes;
-
+        var eteTime = nanosToMs(System.nanoTime() - startTime);
+        
+        for (var i = 0; i < solutions.size(); i++) {
+            var solution = solutions.get(i);
             System.out.printf("Solution for puzzle %d\n", i + 1);
-            for (var state : solution) {
+            for (var state : solution.path()) {
                 System.out.println(state.getAction());
             }
-
-            System.out.printf("Solved in %d steps\n\n", solution.size() - 1);
+            System.out.printf("Solved in %d steps\n\n", solution.path().size() - 1);
         }
 
-        double totalTime = 0;
-        int totalNodes = 0;
-        for (var i = 0; i < states.size(); i++) {
-            System.out.printf("Puzzle %d: %f ms, %d nodes\n", i + 1, times[i], nodeResults[i]);
-            totalTime += times[i];
-            totalNodes += nodeResults[i];
-        }
+        var totalTime = 0d;
+        var totalNodes = 0;
+        for (var i = 0; i < solutions.size(); i++) {
+            var solution = solutions.get(i);
 
+            var time = solution.time();
+            var nodes = solution.nodes();
+
+            System.out.printf("Puzzle %d: %f ms, %d nodes\n", i + 1, time, nodes);
+            totalTime += time;
+            totalNodes += nodes;
+        }
         System.out.printf("Total: %f ms, %d nodes\n", totalTime, totalNodes);
+
+        System.out.printf("End-to-end: %f ms\n", eteTime);
     }
 }

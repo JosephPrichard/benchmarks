@@ -29,10 +29,8 @@ typedef std::tuple<int, int> Position;
 typedef std::tuple<Position, Action> direction;
 
 Position operator+(Position lhs, Position rhs) {
-    auto row1 = std::get<0>(lhs);
-    auto col1 = std::get<1>(lhs);
-    auto row2 = std::get<0>(rhs);
-    auto col2 = std::get<1>(rhs);
+    auto [row1, col1] = lhs;
+    auto [row2, col2] = rhs;
     return Position{row1 + row2, col1 + col2};
 }
 
@@ -57,8 +55,7 @@ public:
     }
 
     static bool in_bounds(Position pos) {
-        auto row = std::get<0>(pos);
-        auto col = std::get<1>(pos);
+        auto [row, col] = pos;
         return row >= 0 && row < N && col >= 0 && col < N;
     }
 
@@ -99,14 +96,8 @@ public:
         for (int i = 0; i < SIZE; i++) {
             Tile tile = this->tiles[i];
             if (tile != 0) {
-                auto pos1 = pos_of_index(tile);
-                auto row1 = std::get<0>(pos1);
-                auto col1 = std::get<1>(pos1);
-
-                auto pos2 = pos_of_index(i);
-                auto row2 = std::get<0>(pos2);
-                auto col2 = std::get<1>(pos2);
-
+                auto [row1, col1] = pos_of_index(tile);
+                auto [row2, col2] = pos_of_index(i);
                 h += abs(row2 - row1) + abs(col2 - col1);
             }
         }
@@ -141,8 +132,7 @@ public:
     }
 
     Tile& operator[](Position pos) {
-        auto row = std::get<0>(pos);
-        auto col = std::get<1>(pos);
+        auto [row, col] = pos;
         return tiles[row * N + col];
     }
 
@@ -232,8 +222,7 @@ public:
             auto zero_pos = curr_puzzle.find_zero();
 
             for (auto& direction : Puzzle<N>::get_directions()) {
-                auto d = std::get<0>(direction);
-                auto a = std::get<1>(direction);
+                auto [d, a] = direction;
 
                 auto new_pos = zero_pos + d;
                 if (Puzzle<N>::in_bounds(new_pos)) {
@@ -325,8 +314,7 @@ public:
             auto zero_pos = curr_puzzle.find_zero();
 
             for (auto& direction : Puzzle<N>::get_directions()) {
-                auto d = std::get<0>(direction);
-                auto a = std::get<1>(direction);
+                auto [d, a] = direction;
 
                 auto new_pos = zero_pos + d;
                 if (Puzzle<N>::in_bounds(new_pos)) {
