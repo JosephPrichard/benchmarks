@@ -52,8 +52,6 @@ public class Main
             futures.add(future);
         }
 
-        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).get();
-
         List<Solution> solutions = new ArrayList<>();
         for (var future : futures) {
             solutions.add(future.get());
@@ -117,7 +115,7 @@ public class Main
             totalTime += time;
             totalNodes += nodes;
         }
-        System.out.printf("Total: %f ms, %d nodes\n", totalTime, totalNodes);
+        System.out.printf("\nTotal: %f ms, %d nodes\n", totalTime, totalNodes);
 
         System.out.printf("End-to-end: %f ms\n", eteTime);
     }

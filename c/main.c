@@ -5,6 +5,8 @@
 #include <stdio.h>
 #include <pthread.h>
 #include <semaphore.h>
+#include <errno.h>
+#include <ctype.h>
 #include "puzzle.h"
 
 #ifdef _WIN32
@@ -28,12 +30,21 @@ int int_sqrt(int size) {
 void init_input(Run* input, int size) {
     input->rows = int_sqrt(size);
     if (input->rows < 0) {
-        printf("Board rows must be a perfect square\n");
+        printf("Board size must be a perfect square, %d is not\n", size);
         exit(1);
     }
     for (int i = 0; i < size; i++) {
         input->goal_brd[i] = (Tile) i;
     }
+}
+
+int is_space_string(char* str) {
+    for (int i = 0; str[i] != 0; i++) {
+        if (!isspace(str[i])) {
+            return 0;
+        }
+    }
+    return 1;
 }
 
 int parse_inputs(Run inputs[MAX_RUNS], FILE* input_file) {
@@ -42,7 +53,7 @@ int parse_inputs(Run inputs[MAX_RUNS], FILE* input_file) {
 
     char line[MAX_LINE] = {0};
     while (fgets(line, sizeof(line), input_file)) {
-        if (strcmp(line, "\n") == 0) {
+        if (is_space_string(line)) {            
             if (board_index >= MAX_RUNS) {
                 printf("Maximum of %d inputs is allowed\n", MAX_RUNS);
                 exit(1);
@@ -50,26 +61,31 @@ int parse_inputs(Run inputs[MAX_RUNS], FILE* input_file) {
             init_input(&inputs[board_index], tile_index);
 
             tile_index = 0;
-            board_index++;
+            board_index += 1;
         } else {
             char* tok;
             char* delim = " \n";
             tok = strtok(line, delim);
 
             while (tok != NULL) {
-                Tile t = (Tile) strtol(tok, NULL, 10);
+                if (is_space_string(tok)) {
+                    tok = strtok(NULL, delim);
+                    continue;
+                }
+
+                Tile tile = (Tile) strtol(tok, NULL, 10);
                 if (errno) {
                     printf("Failed to parse a token to tile_t %s with errno %d\n", tok, errno);
                     exit(1);
                 }
-
+            
                 if (tile_index >= MAX_SIZE){
                     printf("A puzzle must have no more than %d tiles\n", tile_index);
                     exit(1);
                 }
 
-                inputs[board_index].initial_brd[tile_index] = t;
-                tile_index++;
+                inputs[board_index].initial_brd[tile_index] = tile;
+                tile_index += 1;
 
                 tok = strtok(NULL, delim);
             }
@@ -98,7 +114,7 @@ void find_paths(Run runs[], int count) {
     }
 }
 
-typedef struct Task {
+typedef struct {
     Run* run;
     sem_t* sem;
     int i;
@@ -143,15 +159,13 @@ void find_paths_parallel(Run runs[], int count) {
     if (tasks == NULL) {
         printf("Failed to allocate tasks\n");
         exit(1);
-        return;
     }
 
     for (int i = 0; i < count; i++) {
-        Task task = {
-            .run = &runs[i], 
-            .sem = &sem,
-            .i = i
-        };
+        Task task;
+        task.run = &runs[i];
+        task.sem = &sem;
+        task.i = i;
         tasks[i] = task;
         pthread_create(&threads[i], NULL, find_path_task, &tasks[i]);
     }
@@ -173,7 +187,7 @@ int main(int argc, char** argv) {
     FILE* input_file = fopen(file_path, "r");
     if (input_file == NULL) {
         printf("Failed to read input file %s\n", file_path);
-        exit(1);
+        return 1;
     }
 
     char* flag = "seq";

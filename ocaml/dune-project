@@ -4,12 +4,9 @@
 
 (generate_opam_files true)
 
-(source
- (github JosephPrichard/Puzzle.ml))
-
 (authors "Joseph Prichard")
 
 (package
  (name puzzleml)
- (synopsis "Functionally pure implementation of an 8puzzle solver")
+ (synopsis "Functionally pure implementation of a puzzle solver")
  (depends ocaml dune psq unix))

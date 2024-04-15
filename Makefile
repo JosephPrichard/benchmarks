@@ -1,13 +1,12 @@
-CFLAGS=-O3 -march=native
 SHELL=bash
 
-all: c-build cpp-build go-build rust-build-release csharp-build java-build ocaml-build
+all: c-build cpp-build go-build rust-build csharp-build java-build ocaml-build
 
 c-build: c
-	gcc $(CFLAGS) c/main.c -o c/puzzle.exe
+	gcc -O3 -march=native c/main.c -o c/puzzle.exe -lm -lpthread
 
 cpp-build: cpp
-	g++ $(CFLAGS) -std=c++20 cpp/main.cpp -o cpp/puzzle.exe
+	g++ -O3 -march=native -std=c++20 cpp/main.cpp -o cpp/puzzle.exe
 
 go-build: go
 	cd go && \
@@ -17,7 +16,7 @@ rust-build-debug: rust/src
 	cd rust && \
 	cargo build
 
-rust-build-release: rust/src
+rust-build: rust/src
 	cd rust && \
 	cargo build --release
 
@@ -28,7 +27,8 @@ ocaml-build: ocaml
 
 csharp-build: csharp
 	cd csharp/npuzzle && \
-	dotnet publish -c Release -o publish -p:PublishReadyToRun=true -p:PublishSingleFile=true -p:PublishTrimmed=true --self-contained true -p:IncludeNativeLibrariesForSelfExtract=true
+	dotnet publish -c Release -o publish -p:PublishReadyToRun=true -p:PublishSingleFile=true \
+		-p:PublishTrimmed=true --self-contained true -p:IncludeNativeLibrariesForSelfExtract=true
 
 java-build: java
 	cd java && \

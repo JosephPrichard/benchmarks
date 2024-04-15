@@ -1,4 +1,5 @@
 const fs = require('fs');
+const { Worker, isMainThread, parentPort } = require('worker_threads')
 
 function indexOfPos(pos, dim) {
     return pos.row * dim + pos.col;
@@ -234,7 +235,7 @@ function findPath(initial) {
     return { path: [], nodes };
 }
 
-function read_puzzles(s) {
+function readPuzzles(s) {
     const puzzles = [];
     let currTiles = [];
 
@@ -256,6 +257,21 @@ function read_puzzles(s) {
     return puzzles;
 }
 
+function runPuzzles(puzzles) {
+    const solutions = [];
+    for (const puzzle of puzzles) {
+        const start = process.hrtime.bigint();
+
+        const { path, nodes } = findPath(puzzle);
+
+        const end = process.hrtime.bigint();
+        const time = Number(end - start) / 1e6;
+
+        solutions.push({path, time, nodes});
+    }
+    return [];
+}
+
 function main() {
     if (process.argv.length < 3) {
         console.log("Need at least 1 program argument");
@@ -272,34 +288,26 @@ function main() {
         process.exit(1);
     }
 
-    const puzzles = read_puzzles(fileContents);
-    const results = [];
+    const puzzles = readPuzzles(fileContents);
+    const solutions = runPuzzles(puzzles);
 
-    for (const puzzle of puzzles) {
-        const start = process.hrtime.bigint();
-
-        const { path, nodes } = findPath(puzzle);
-
-        const end = process.hrtime.bigint();
-        const time = Number(end - start) / 1e6;
-
-        results.push({time, nodes});
-
-        for (const p of path) {
+    for (const sol of solutions) {
+        for (const p of sol.path) {
             console.log(p.action);
         }
-        console.log(`Solved in ${path.length - 1} steps\n`);
+        console.log(`Solved in ${sol.path.length - 1} steps\n`);
     }
 
     let totalTime = 0;
     let totalNodes = 0;
-    for (let i = 0; i < results.length; i++) {
-        console.log(`Puzzle ${i + 1}: ${results[i].time} ms, ${results[i].nodes} nodes`);
-        totalTime += results[i].time;
-        totalNodes += results[i].nodes;
+    for (let i = 0; i < solutions.length; i++) {
+        console.log(`Puzzle ${i + 1}: ${solutions[i].time} ms, ${solutions[i].nodes} nodes`);
+        totalTime += solutions[i].time;
+        totalNodes += solutions[i].nodes;
     }
 
-    console.log(`Total: ${totalTime} ms, ${totalNodes} nodes`);
+    console.log(`\nTotal: ${totalTime} ms, ${totalNodes} nodes`);
+    console.log(`End-to-end {totalTime} ms`);
 }
 
 main();

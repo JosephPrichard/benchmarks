@@ -1,4 +1,5 @@
 open Puzzle_solver
+open Unix
 
 let run_solutions tiles =
   List.mapi
@@ -37,8 +38,6 @@ let () =
     
         let _, total_time, total_nodes = total_solutions solutions in
     
-        Printf.printf
-          "Total: %f ms, %d nodes"
-          total_time
-          total_nodes;
+        Printf.printf "\nTotal: %f ms, %d nodes" total_time total_nodes;
+        Printf.printf "\nEnd-to-end: %f ms" total_time;
     | _ -> print_endline "Needs at least 1 program argument"

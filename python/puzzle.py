@@ -1,5 +1,8 @@
+import multiprocessing
+import threading
 import copy
 import heapq
+import os
 import sys
 import time
 from enum import Enum
@@ -143,10 +146,14 @@ def reconstruct_path(curr: Puzzle):
 
 
 def find_path(initial: Puzzle):
+    start = time.perf_counter()
+
     visited = {}
     frontier = [initial]
 
     goal = create_goal(len(initial.tiles))
+
+    path = []
 
     nodes = 0
     while len(frontier) > 0:
@@ -154,7 +161,8 @@ def find_path(initial: Puzzle):
         nodes += 1
 
         if curr_puzzle.equals(goal):
-            return reconstruct_path(curr_puzzle), nodes
+            path = reconstruct_path(curr_puzzle)
+            break
 
         visited[curr_puzzle.hash()] = True
 
@@ -164,7 +172,10 @@ def find_path(initial: Puzzle):
 
         curr_puzzle.neighbors(on_neighbor)
 
-    return [], nodes
+    end = time.perf_counter()
+    t = (end - start) * 1000.0
+
+    return path, nodes, t
 
 
 def read_puzzles(s: str) -> list[Puzzle]:
@@ -186,38 +197,71 @@ def read_puzzles(s: str) -> list[Puzzle]:
     return puzzles
 
 
+def run_puzzles(puzzle):
+    solutions = []
+    for puzzle in puzzles:
+        solutions.append(find_path(puzzle))
+    return solutions
+
+
+def run_puzzle_task(puzzle, i, solutions):
+    solutions[i] = find_path(puzzle)
+
+
+def run_puzzles_parallel(puzzles):
+    manager = multiprocessing.Manager()
+    solutions = manager.list([None] * len(puzzles))
+
+    processes = []
+    for i in range(0, len(puzzles)):
+        p = multiprocessing.Process(target=run_puzzle_task, args=(puzzles[i], i, solutions))
+        processes.append(p)
+        p.start()
+    for p in processes:
+        p.join()
+
+    return solutions
+
+
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Need at least 1 program argument")
         exit(1)
 
+    flag = "seq"
+    if len(sys.argv) > 2:
+        flag = sys.argv[2]
+
     with open(sys.argv[1], "r") as file:
         file_contents = file.read()
         puzzles = read_puzzles(file_contents)
 
-        results = []
+        start = time.perf_counter()
 
-        for puzzle in puzzles:
-            start = time.perf_counter()
+        if flag == "seq":
+            solutions = run_puzzles(puzzles)
+        elif flag == "par":
+            solutions = run_puzzles_parallel(puzzles)
+        else:
+            print("Flag must be par or seq got ", flag)
+            exit(1);
 
-            solution, nodes = find_path(puzzle)
+        end = time.perf_counter()
+        eteTime = (end - start) * 1000.0
 
-            end = time.perf_counter()
-            t = (end - start) * 1000.0
-
-            results.append((t, nodes))
-
-            for p in solution:
+        for sol in solutions:
+            for p in sol[0]:
                 print(p.action)
 
-            print(f"Solved in {len(solution) - 1} steps\n")
+            print(f"Solved in {len(sol[0]) - 1} steps\n")
 
         totalTime = 0
         totalNodes = 0
-        for i in range(0, len(results)):
-            print(f"Puzzle {i + 1}: {results[i][0]} ms, {results[i][1]} nodes")
-            totalTime += results[i][0]
-            totalNodes += results[i][1]
+        for i in range(0, len(solutions)):
+            print(f"Puzzle {i + 1}: {solutions[i][2]} ms, {solutions[i][1]} nodes")
+            totalTime += solutions[i][2]
+            totalNodes += solutions[i][1]
 
-        print(f"Total: {totalTime} ms, {totalNodes} nodes")
+        print(f"\nTotal: {totalTime} ms, {totalNodes} nodes")
+        print(f"End-to-end: {eteTime} ms")
             

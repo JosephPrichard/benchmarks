@@ -5,81 +5,119 @@ if [ -z "$INPUT_FILE" ]; then
     exit 1
 fi
 
-rows=()
-
-paths=(
-    "./c/puzzle.exe"
-    "./cpp/puzzle.exe"
-    "./cpp/puzzle.exe"
-    "./rust/target/release/puzzle.exe"
-    "./rust/target/release/puzzle.exe"
-    "./csharp/npuzzle/publish/npuzzle.exe"
-    "./go/puzzle.exe"
-    "java -cp ./java/out/puzzle.jar src.Main"
-    "./ocaml/_build/install/default/bin/puzzleml.exe"
-    "node ./nodejs/puzzle.js"
-    "python ./python/puzzle.py"
-)
-
-declare -A args
-args["Rust Arena"]="arena"
-args["Rust RC"]="rc"
-args["Rust Slow"]="slow"
-
-languages=(
-    "C"
-    "C++ Arena"
-    "C++ shared_ptr"
-    "Rust Arena"
-    "Rust Rc"
-    "C#"
-    "Go"
-    "Java"
-    "OCaml"
-    "Node.js"
-    "Python"
-)
-
-extensions=(
-    "c"
-    "cpp"
-    "cpp"
-    "rs"
-    "rs"
-    "cs"
-    "go"
-    "java"
-    "ml"
-    "js"
-    "py"
-)
-
 get_row() {
-    local str=$(echo "$1" | tail -n 1)
+    local str=$(echo "$1" | tail -n 2)
     local total=$(echo "$str" | grep -oP '(?<=Total: )\d+(\.\d+)?')
     local nodes=$(echo "$str" | grep -oP '(?<=, )\d+(?= nodes)')
-    echo "$2, $total, $nodes, $3"
+    local ete=$(echo "$str" | grep -oP '(?<=End-to-end: )\d+(\.\d+)?')
+    echo "$2, $ete, $total, $nodes", $3
 }
 
-for ((i = 0; i < ${#paths[@]}; i++)); do
-    path="${paths[$i]}"
-    language="${languages[$i]}"
-    extension="${extensions[$i]}"
+rows=()
 
-    arg="${args[$language]}"
+result=$(eval "./c/puzzle.exe" "$INPUT_FILE" "par")
+echo "$result"
+printf "\n"
+row=$(get_row "$result" "C" "yes")
+rows+=("$row")
 
-    result=$(eval "$path" "$INPUT_FILE" "$arg")
-    echo "$result"
-    printf "\n"
+result=$(eval "./c/puzzle.exe" "$INPUT_FILE" "seq")
+echo "$result"
+printf "\n"
+row=$(get_row "$result" "C" "no")
+rows+=("$row")
 
-    str=$(echo "$result" | tail -n 1)
-    total=$(echo "$str" | grep -oP '(?<=Total: )\d+(\.\d+)?')
-    nodes=$(echo "$str" | grep -oP '(?<=, )\d+(?= nodes)')
-    row="$language, $total, $nodes, $extension"
-    rows+=("$row")
-done
+result=$(eval "./cpp/puzzle.exe" "$INPUT_FILE" "par")
+echo "$result"
+printf "\n"
+row=$(get_row "$result" "C++" "yes")
+rows+=("$row")
 
-printf "Language, Time (ms), Nodes, Extension\n"
+result=$(eval "./cpp/puzzle.exe" "$INPUT_FILE" "seq")
+echo "$result"
+printf "\n"
+row=$(get_row "$result" "C++" "no")
+rows+=("$row")
+
+result=$(eval "./rust/target/release/puzzle.exe" "$INPUT_FILE" "arena" "par")
+echo "$result"
+printf "\n"
+row=$(get_row "$result" "Rust Arena" "yes")
+rows+=("$row")
+
+result=$(eval "./rust/target/release/puzzle.exe" "$INPUT_FILE" "arena" "seq")
+echo "$result"
+printf "\n"
+row=$(get_row "$result" "Rust Arena" "no")
+rows+=("$row")
+
+result=$(eval "./rust/target/release/puzzle.exe" "$INPUT_FILE" "rc" "par")
+echo "$result"
+printf "\n"
+row=$(get_row "$result" "Rust Rc" "yes")
+rows+=("$row")
+
+result=$(eval "./rust/target/release/puzzle.exe" "$INPUT_FILE" "rc" "seq")
+echo "$result"
+printf "\n"
+row=$(get_row "$result" "Rust Rc" "no")
+rows+=("$row")
+
+result=$(eval "./csharp/npuzzle/publish/npuzzle.exe" "$INPUT_FILE" "par")
+echo "$result"
+printf "\n"
+row=$(get_row "$result" "C#" "yes")
+rows+=("$row")
+
+result=$(eval "./csharp/npuzzle/publish/npuzzle.exe" "$INPUT_FILE" "seq")
+echo "$result"
+printf "\n"
+row=$(get_row "$result" "C#" "no")
+rows+=("$row")
+
+result=$(eval "./go/puzzle.exe" "$INPUT_FILE" "par")
+echo "$result"
+printf "\n"
+row=$(get_row "$result" "Go" "yes")
+rows+=("$row")
+
+result=$(eval "./go/puzzle.exe" "$INPUT_FILE" "seq")
+echo "$result"
+printf "\n"
+row=$(get_row "$result" "Go" "no")
+rows+=("$row")
+
+result=$(eval "java -cp ./java/out/puzzle.jar src.Main" "$INPUT_FILE" "par")
+echo "$result"
+printf "\n"
+row=$(get_row "$result" "Java" "yes")
+rows+=("$row")
+
+result=$(eval "java -cp ./java/out/puzzle.jar src.Main" "$INPUT_FILE" "seq")
+echo "$result"
+printf "\n"
+row=$(get_row "$result" "Java" "no")
+rows+=("$row")
+
+result=$(eval "./ocaml/_build/install/default/bin/puzzleml.exe" "$INPUT_FILE")
+echo "$result"
+printf "\n"
+row=$(get_row "$result" "Ocaml" "no")
+rows+=("$row")
+
+result=$(eval "node ./nodejs/puzzle.js" "$INPUT_FILE")
+echo "$result"
+printf "\n"
+row=$(get_row "$result" "Nodejs" "no")
+rows+=("$row")
+
+result=$(eval "py ./python/puzzle.py" "$INPUT_FILE")
+echo "$result"
+printf "\n"
+row=$(get_row "$result" "Python" "no")
+rows+=("$row")
+
+printf "Lang, Ete (ms), Total (ms), Nodes, Parallel\n"
 for row in "${rows[@]}"; do
     echo "$row"
 done

@@ -1,9 +1,10 @@
-use std::sync::Arc;
-use std::{env, thread};
+use std::thread::available_parallelism;
+use std::env;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::time::Instant;
-use semaphore::Semaphore;
+
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
 use crate::AnyPuzzle::{EightPuzzle, FifteenPuzzle};
 use crate::AnySolution::{EightSolution, FifteenSolution};
@@ -11,7 +12,6 @@ use crate::puzzle::Puzzle;
 
 mod puzzle;
 mod solver;
-mod semaphore;
 
 enum AnyPuzzle {
     EightPuzzle(Puzzle<9>),
@@ -94,27 +94,17 @@ fn run_puzzles(puzzles: Vec<AnyPuzzle>, mem_flag: MemFlag) -> Vec<(f64, u32, Any
 }
 
 fn run_puzzles_parallel(puzzles: Vec<AnyPuzzle>, mem_flag: MemFlag) -> Vec<(f64, u32, AnySolution)> {
-    let mut threads = vec![];
-    let mut solutions = vec![];
+    let count = available_parallelism().unwrap().get();
+    rayon::ThreadPoolBuilder::new()
+        .num_threads(count)
+        .build_global()
+        .unwrap();
 
-    let sem = Arc::new(Semaphore::with_core_count());
-
-    for puzzle in puzzles {
-        let sem = sem.clone();
-        let thread = thread::spawn(move || {
-            sem.down_one();
-            let solution = run_any_puzzle(puzzle, mem_flag);
-            sem.up_one();
-            solution
-        });
-        threads.push(thread);
-    }
-
-    for thread in threads {
-        solutions.push(thread.join().unwrap());
-    }
-
-    return solutions;
+    let solutions = puzzles
+        .into_par_iter()
+        .map(|puzzle| { run_any_puzzle(puzzle, mem_flag) })
+        .collect();
+    solutions
 }
 
 fn print_solution<const N: usize>(solution: &Vec<Puzzle<N>>, nodes: u32) {
@@ -197,5 +187,5 @@ fn main() {
 
     println!("\nTotal: {} ms, {} nodes", total_time, total_nodes);
 
-    println!("End-to-end time: {} ms", ete_time)
+    println!("End-to-end: {} ms", ete_time)
 }
