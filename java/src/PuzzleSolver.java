@@ -67,7 +67,8 @@ public class PuzzleSolver
             }
 
             currentState.onNeighbors((neighbor) -> {
-                if (!visited.contains(neighbor.toString())) {
+                var hash = neighbor.toString();
+                if (!visited.contains(hash)) {
                     var h = heuristic(neighbor);
                     neighbor.calcFScore(h);
                     frontier.add(neighbor);

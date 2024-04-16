@@ -99,16 +99,22 @@ printf "\n"
 row=$(get_row "$result" "Java" "no")
 rows+=("$row")
 
-# result=$(eval "./ocaml/_build/install/default/bin/puzzleml.exe" "$INPUT_FILE")
-# echo "$result"
-# printf "\n"
-# row=$(get_row "$result" "Ocaml" "no")
-# rows+=("$row")
+result=$(eval "./ocaml/_build/install/default/bin/puzzleml.exe" "$INPUT_FILE")
+echo "$result"
+printf "\n"
+row=$(get_row "$result" "Ocaml" "no")
+rows+=("$row")
 
 result=$(eval "node ./nodejs/puzzle.js" "$INPUT_FILE")
 echo "$result"
 printf "\n"
 row=$(get_row "$result" "Nodejs" "no")
+rows+=("$row")
+
+result=$(eval "py ./python/puzzle.py" "$INPUT_FILE" par)
+echo "$result"
+printf "\n"
+row=$(get_row "$result" "Python" "yes")
 rows+=("$row")
 
 result=$(eval "py ./python/puzzle.py" "$INPUT_FILE")

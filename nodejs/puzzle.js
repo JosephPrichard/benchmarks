@@ -1,190 +1,79 @@
 const fs = require('fs');
-const { Worker, isMainThread, parentPort } = require('worker_threads')
+const Heap = require('heap');
 
-function indexOfPos(pos, dim) {
-    return pos.row * dim + pos.col;
-}
+const ACTIONS = ["Start", "Up", "Down", "Left", "Right"]
 
-function posOfIndex(i, dim) {
-    return { row: Math.floor(i / dim), col: i % dim };
-}
-
-function inBounds(pos, dim) {
-    return pos.row >= 0 && pos.row < dim && pos.col >= 0 && pos.col < dim;
-}
-
-function addPositions(pos1, pos2) {
-    return { row: pos1.row + pos2.row, col: pos1.col + pos2.col };
-}
-
-const directions = [
-    { dir: { row: 1, col: 0 }, action: "Up" },
-    { dir: { row: -1, col: 0 }, action: "Down" },
-    { dir: { row: 0, col: 1 }, action: "Left" },
-    { dir: { row: 0, col: -1 }, action: "Right" }
+const DIRECTIONS = [
+    { row: 1, col: 0 },
+    { row: -1, col: 0 },
+    { row: 0, col: 1 },
+    { row: 0, col: -1 }
 ];
 
-class Puzzle {
-
-    constructor(tiles) {
-        this.g = 0;
-        this.f = 0;
-        this.prev = null;
-        this.tiles = tiles;
-        this.action = "Start";
-        this.dim = Math.floor(Math.sqrt(tiles.length));
-    }
-
-    equals(other) {
-        for (let i = 0; i < this.tiles.length; i++) {
-            if (this.tiles[i] !== other[i]) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    heuristic() {
-        let h = 0;
-        for (let i = 0; i < this.tiles.length; i++) {
-            const t = this.tiles[i];
-            if (t != 0) {
-                const pos1 = posOfIndex(i, this.dim);
-                const pos2 = posOfIndex(t, this.dim);
-                h += Math.abs(pos2.row - pos1.row) + Math.abs(pos2.col - pos1.col);
-            }
-        }
-        return h;
-    }
-
-    findZero() {
-        for (let i = 0; i < this.tiles.length; i++) {
-            if (this.tiles[i] === 0) {
-                return posOfIndex(i, this.dim);
-            }
-        }
-        throw new Error("Puzzles should contain a 0 tile");
-    }
-
-    toString() {
-        return this.tiles.join('');
-    }
-
-    printString() {
-        let s = "";
-        for (let i = 0; i < this.tiles.length; i++) {
-            if (this.tiles[i] === 0) {
-                s += "  ";
-            } else {
-                s += this.tiles[i] + " ";
-            }
-            if ((i + 1) % this.dim === 0) {
-                s += "\n";
-            }
-        }
-        return s
-    }
-
-    neighbors(callback) {
-        const zero_pos = this.findZero();
-        const zero_index = indexOfPos(zero_pos, this.dim);
-
-        for (const { dir, action } of directions) {
-            const next_pos = addPositions(zero_pos, dir);
-            const next_index = indexOfPos(next_pos, this.dim);
-
-            if (!inBounds(next_pos, this.dim)) {
-                continue;
-            }
-
-            const nextPuzzle = new Puzzle([...this.tiles]);
-
-            const temp = nextPuzzle.tiles[zero_index];
-            nextPuzzle.tiles[zero_index] = nextPuzzle.tiles[next_index];
-            nextPuzzle.tiles[next_index] = temp;
-
-            nextPuzzle.prev = this;
-            nextPuzzle.action = action;
-            nextPuzzle.g = this.g + 1;
-            nextPuzzle.f = nextPuzzle.g + nextPuzzle.heuristic();
-
-            callback(nextPuzzle);
-        }
-    }
+function newPuzzle(tiles) {
+    return { 
+        g: 0,
+        f: 0,
+        prev: null,
+        tiles: tiles,
+        action: 0
+    };
 }
 
-class Heap {
-
-    constructor(compare) {
-        this.elements = [];
-        this.compare = compare;
-    }
-
-    getSize() {
-        return this.elements.length;
-    }
-
-    isEmpty() {
-        return this.elements.length === 0;
-    }
-
-    push(e) {
-        this.elements.push(e);
-        this.siftUp(this.elements.length - 1); //last element
-    }
-
-    peek() {
-        return this.elements[0];
-    }
-
-    pop() {
-        const val = this.peek();
-        this.move(this.elements.length - 1, 0);
-        this.elements.pop();
-        this.siftDown(0);
-        return val;
-    }
-
-    clear() {
-        this.elements = [];
-    }
-
-    siftUp(pos) {
-        let parent = ((pos - 1) / 2) >> 0; //integer division
-        while (parent >= 0) {
-            if (this.compare(this.elements[pos], this.elements[parent])) {
-                this.swap(pos, parent);
-                pos = parent;
-                parent = ((pos - 1) / 2) >> 0;
-            } else {
-                parent = -1;
-            }
+function tilesEquals(tiles, other) {
+    for (let i = 0; i < tiles.length; i++) {
+        if (tiles[i] !== other[i]) {
+            return false;
         }
     }
+    return true;
+}
 
-    siftDown(pos) {
-        const left = 2 * pos + 1;
-        const right = 2 * pos + 2;
-        if (left >= this.elements.length) {
-            return;
+function heuristic(tiles, dim) {
+    let h = 0;
+    for (let i = 0; i < tiles.length; i++) {
+        const t = tiles[i];
+        if (t != 0) {
+            const row1 = Math.floor(i / dim);
+            const col1 = i % dim;
+            const row2 = Math.floor(t / dim);
+            const col2 = t % dim;
+            h += Math.abs(row2 - row1) + Math.abs(col2 - col1);
         }
-        const child = (right >= this.elements.length || this.compare(this.elements[left], this.elements[right]))
-            ? left : right;
-        if (this.compare(this.elements[child], this.elements[pos])) {
-            this.swap(child, pos);
-            this.siftDown(child);
+    }
+    return h;
+}
+
+function findZero(tiles) {
+    for (let i = 0; i < tiles.length; i++) {
+        if (tiles[i] === 0) {
+            return i;
         }
     }
+    throw new Error("Puzzles should contain a 0 tile");
+}
 
-    move(from, to) {
-        this.elements[to] = this.elements[from];
-    }
+function tilesToString(tiles) {
+    return tiles.join('');
+}
 
-    swap(a, b) {
-        let val = this.elements[a];
-        this.elements[a] = this.elements[b];
-        this.elements[b] = val;
+function printString(dim) {
+    let s = "";
+    for (let i = 0; i < tiles.length; i++) {
+        if (tiles[i] === 0) {
+            s += "  ";
+        } else {
+            s += tiles[i] + " ";
+        }
+        if ((i + 1) % dim === 0) {
+            s += "\n";
+        }
     }
+    return s
+}
+
+function inBounds(row, col, dim) {
+    return row >= 0 && row < dim && col >= 0 && col < dim;
 }
 
 function createGoal(size) {
@@ -194,6 +83,15 @@ function createGoal(size) {
     }
     return tiles;
 }
+
+function createGoal(size) {
+    const tiles = [];
+    for (let i = 0; i < size; i++) {
+        tiles.push(i);
+    }
+    return tiles;
+}
+
 
 function reconstructPath(curr) {
     const path = [];
@@ -206,30 +104,57 @@ function reconstructPath(curr) {
 }
 
 function findPath(initial) {
-    const visited = {};
-    const frontier = new Heap((p1, p2) => p1.f < p2.f);
+    const dim = Math.floor(Math.sqrt(initial.tiles.length));
+
+    const visited = new Map();
+    const frontier = new Heap((p1, p2) => p1.f - p2.f);
     frontier.push(initial);
 
     const goal = createGoal(initial.tiles.length);
 
     let nodes = 0;
-    while (!frontier.isEmpty()) {
+    while (!frontier.empty()) {
         const currPuzzle = frontier.pop();
         nodes++;
 
-        if (currPuzzle.equals(goal)) {
+        if (tilesEquals(currPuzzle.tiles, goal)) {
             return { path: reconstructPath(currPuzzle), nodes };
         }
 
-        visited[currPuzzle.toString()] = true;
+        const tilesStr = tilesToString(currPuzzle.tiles);
+        visited.set(tilesStr, true);
 
-        const onNeighbor = (neighbor) => {
-            if (!visited[neighbor.toString()]) {
-                frontier.push(neighbor);
+        const zeroIndex = findZero(currPuzzle.tiles);
+        const zeroRow = Math.floor(zeroIndex / dim);
+        const zeroCol = zeroIndex % dim;
+
+        for (let i = 0; i < DIRECTIONS.length; i++) {
+            const {row, col} = DIRECTIONS[i];
+
+            const nextRow = zeroRow + row;
+            const nextCol = zeroCol + col;
+
+            if (!inBounds(nextRow, nextCol, dim)) {
+                continue;
             }
-        };
 
-        currPuzzle.neighbors(onNeighbor);
+            const nextIndex = nextRow * dim + nextCol;
+            const nextPuzzle = newPuzzle([...currPuzzle.tiles]);
+
+            const temp = nextPuzzle.tiles[zeroIndex];
+            nextPuzzle.tiles[zeroIndex] = nextPuzzle.tiles[nextIndex];
+            nextPuzzle.tiles[nextIndex] = temp;
+
+            nextPuzzle.prev = currPuzzle;
+            nextPuzzle.action = i + 1;
+            nextPuzzle.g = currPuzzle.g + 1;
+            nextPuzzle.f = nextPuzzle.g + heuristic(nextPuzzle.tiles, dim);
+
+            const tilesStr = tilesToString(nextPuzzle.tiles);
+            if (!visited.get(tilesStr)) {
+                frontier.push(nextPuzzle);
+            }
+        }
     }
 
     return { path: [], nodes };
@@ -249,7 +174,7 @@ function readPuzzles(s) {
             }
         } else {
             if (currTiles.length > 0) {
-                puzzles.push(new Puzzle(currTiles));
+                puzzles.push(newPuzzle(currTiles));
                 currTiles = [];
             }
         }
@@ -293,7 +218,7 @@ function main() {
 
     for (const sol of solutions) {
         for (const p of sol.path) {
-            console.log(p.action);
+            console.log(ACTIONS[p.action]);
         }
         console.log(`Solved in ${sol.path.length - 1} steps\n`);
     }
@@ -307,7 +232,7 @@ function main() {
     }
 
     console.log(`\nTotal: ${totalTime} ms, ${totalNodes} nodes`);
-    console.log(`End-to-end: {totalTime} ms`);
+    console.log(`End-to-end: ${totalTime} ms`);
 }
 
 main();

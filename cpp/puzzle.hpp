@@ -13,6 +13,7 @@
 #include <unordered_map>
 #include <algorithm>
 #include <cmath>
+#include <memory_resource>
 
 #ifndef CPP_PUZZLE_H
 #define CPP_PUZZLE_H
@@ -45,42 +46,18 @@ enum Action {
 };
 
 struct Direction {
-    Position vector2;
+    Position vec2d;
     Action action;
 };
 
-struct Puzzle {
-    std::array<Tile, 16> tiles{};
-    Action action = NONE;
-    int g = 0;
-    int f = 0;
-    Puzzle* prev = nullptr;
-
-    // initializes a new puzzles from a dynamic array of tiles and does error checking
-    explicit Puzzle(const std::vector<Tile>& tiles) {
-        if (tiles.size() > 16) {
-            printf("A puzzle must have at most 16 tiles, got %zu", tiles.size());
-            exit(1);
-        }
-        for (int i = 0; i < tiles.size(); i++) {
-            this->tiles[i] = tiles[i];
-        }
-    };
-
-    // creates a new neighboring puzzle from another puzzle
-    explicit Puzzle(const std::array<Tile, 16>& tiles, Puzzle* prev) : tiles(tiles) {
-        this->prev = prev;
-    };
-};
-
- int heuristic(std::array<Tile, 16>& tiles, unsigned int n) {
+int heuristic(std::array<Tile, 16>& tiles, unsigned int n) {
     int h = 0;
     for (int i = 0; i < tiles.size(); i++) {
         Tile tile = tiles[i];
         if (tile != 0) {
-            auto [row1, col1] = pos_of_index(tile, n);
-            auto [row2, col2] = pos_of_index(i, n);
-            h += abs(row2 - row1) + abs(col2 - col1);
+            auto pos1 = pos_of_index(tile, n);
+            auto pos2 = pos_of_index(i, n);
+            h += abs(pos2.row - pos1.row) + abs(pos2.col - pos1.col);
         }
     }
     return h;
@@ -92,16 +69,16 @@ Position find_zero(std::array<Tile, 16>& tiles, unsigned int n) {
             return pos_of_index(i, n);
         }
     }
-    std::cout << "Puzzle should contain a zero" << std::endl;
+    printf("Puzzle should contain a zero\n");
     exit(1);
 }
 
-Puzzle get_goal(unsigned int n) {
-    std::vector<Tile> tiles;
+std::array<Tile, 16> get_goal_tiles(unsigned int n) {
+    std::array<Tile, 16> tiles{};
     for (int i = 0; i < n * n; i++) {
-        tiles.push_back((Tile) i);
+        tiles[i] = (Tile) i;
     }
-    return Puzzle(tiles);
+    return tiles;
 }
 
 unsigned long long hash_tiles(const std::array<Tile, 16>& tiles, unsigned int size) {
@@ -114,6 +91,14 @@ unsigned long long hash_tiles(const std::array<Tile, 16>& tiles, unsigned int si
     return hash;
 }
 
+struct Puzzle {
+    std::array<Tile, 16> tiles{};
+    Action action = NONE;
+    int g = 0;
+    int f = 0;
+    Puzzle* prev = nullptr;
+};
+
 void reconstruct_path(std::vector<Puzzle>& path, Puzzle* curr) {
     while (curr != nullptr) {
         path.push_back(*curr);
@@ -122,51 +107,44 @@ void reconstruct_path(std::vector<Puzzle>& path, Puzzle* curr) {
     std::reverse(path.begin(), path.end());
 }
 
-const std::array<Direction, 4>& get_directions() {
-    const static std::array<Direction, 4> DIRECTIONS = {
-        Direction{Position{0, -1}, LEFT},
-        Direction{Position{-1, 0}, UP},
-        Direction{Position{1, 0}, DOWN},
-        Direction{Position{0, 1}, RIGHT}
-    };
-    return DIRECTIONS;
-}
+const static std::array<Direction, 4> DIRECTIONS = {
+    Direction{Position{0, -1}, LEFT},
+    Direction{Position{-1, 0}, UP},
+    Direction{Position{1, 0}, DOWN},
+    Direction{Position{0, 1}, RIGHT}
+};
+
+struct PuzzleInput {
+    std::array<Tile, 16> tiles;
+    unsigned int n;
+};
 
 struct Solution {
-    float time = 0;
+    double time = 0;
     int nodes = 0;
     std::vector<Puzzle> path;
 };
 
-unsigned int int_sqrt(unsigned int size) {
-    float sqf = std::sqrt(static_cast<float>(size));
-    float sq_flf = std::floor(sqf);
-    if (sqf - sq_flf != 0) {
-        return -1;
-    }
-    return static_cast<unsigned int>(sq_flf);
-}
+std::unique_ptr<Solution> find_path(PuzzleInput input) {
+    unsigned int n = input.n;
+    unsigned int size = input.n * input.n;
+    
+    std::pmr::unsynchronized_pool_resource upr;
+    std::pmr::monotonic_buffer_resource mbr;
+    std::pmr::polymorphic_allocator<Puzzle> pa{ &mbr };
 
-static std::unique_ptr<Solution> find_path(std::vector<Tile>& tiles) {
-    Puzzle initial(tiles);
+    Puzzle initial;
+    initial.tiles = input.tiles;
 
-    unsigned int size = tiles.size();
-    unsigned int n = int_sqrt(size);
-    if (n <= 0) {
-        printf("Size must be a perfect square, got %d", size);
-        exit(1);
-    }
-
-    std::vector<std::unique_ptr<Puzzle>> puzzles;
-
-    std::unordered_map<unsigned long long, bool> visited;
+    std::pmr::unordered_map<unsigned long long, bool> visited{ &upr };
 
     auto cmp = [](Puzzle* lhs, Puzzle* rhs) { return lhs->f > rhs->f; };
-    std::priority_queue<Puzzle*, std::vector<Puzzle*>, decltype(cmp)> frontier(cmp);
+    std::priority_queue<Puzzle*, std::pmr::vector<Puzzle*>, decltype(cmp)> 
+        frontier{ cmp, std::pmr::polymorphic_allocator<Puzzle*>{ &upr } };
     frontier.push(&initial);
 
-    const Puzzle& goal = get_goal(n);
-    auto goal_hash = hash_tiles(goal.tiles, size);
+    auto goal = get_goal_tiles(n);
+    auto goal_hash = hash_tiles(goal, size);
 
     auto solution = std::make_unique<Solution>();
 
@@ -176,7 +154,7 @@ static std::unique_ptr<Solution> find_path(std::vector<Tile>& tiles) {
         frontier.pop();
         solution->nodes += 1;
 
-        unsigned long long curr_hash = hash_tiles(curr->tiles, size);
+        auto curr_hash = hash_tiles(curr->tiles, size);
         visited[curr_hash] = true;
 
         if (goal_hash == curr_hash) {
@@ -186,8 +164,9 @@ static std::unique_ptr<Solution> find_path(std::vector<Tile>& tiles) {
 
         Position zero_pos = find_zero(curr->tiles, n);
 
-        for (auto& direction : get_directions()) {
-            Position new_pos = zero_pos + direction.vector2;
+        for (auto& direction : DIRECTIONS) {
+            Position new_pos = zero_pos + direction.vec2d;
+            
             if (in_bounds(new_pos, n)) {
                 std::array<Tile, 16> next_tiles = curr->tiles;
 
@@ -197,16 +176,19 @@ static std::unique_ptr<Solution> find_path(std::vector<Tile>& tiles) {
                 next_tiles[new_index] = next_tiles[zero_index];
                 next_tiles[zero_index] = temp;
 
-                unsigned long long next_hash = hash_tiles(next_tiles, size);
+                auto next_hash = hash_tiles(next_tiles, size);
                 
-                if (visited.count(next_hash) <= 0) {
-                    auto neighbor = std::make_unique<Puzzle>(next_tiles, curr);
+                auto has_key = visited.count(next_hash) > 0;
+                if (!has_key) {
+                    auto* neighbor = new(pa.allocate(1)) Puzzle();
+
+                    neighbor->tiles = next_tiles; // copy
+                    neighbor->prev = curr;
                     neighbor->action = direction.action;
                     neighbor->g = curr->g + 1;
                     neighbor->f = neighbor->g + heuristic(neighbor->tiles, n);
                     
-                    puzzles.emplace_back(std::move(neighbor));
-                    frontier.push(puzzles.back().get());
+                    frontier.push(neighbor);
                 }
             }
         }

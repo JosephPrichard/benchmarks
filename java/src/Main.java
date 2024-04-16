@@ -33,7 +33,7 @@ public class Main
         var tp = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
         List<CompletableFuture<Solution>> futures = new ArrayList<>();
 
-        for (Puzzle state : states) {
+        for (var state : states) {
             var future = CompletableFuture.supplyAsync(() -> {
                 var startTime = System.nanoTime();
 

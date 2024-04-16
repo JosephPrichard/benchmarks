@@ -1,0 +1,15 @@
+{
+  "name": "npuzzle",
+  "version": "1.0.0",
+  "description": "",
+  "main": "puzzle.js",
+  "scripts": {
+    "build": "",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "heap": "^0.2.7"
+  }
+}

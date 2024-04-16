@@ -17,26 +17,6 @@
 #define LF_THRESHOLD 0.7f
 #define INITIAL_ARENA_SIZE 1000
 
-int is_prime(int n) {
-    for (int i = 2; i <= sqrt(n); i++) {
-        // if n is divisible by any number between 2 and n/2, it is not prime
-        if (n % i == 0) {
-            return 0;
-        }
-    }
-    if (n <= 1)
-        return 0;
-    return 1;
-}
-
-int next_prime(int n) {
-    for (int i = n;; i++) {
-        if (is_prime(i)) {
-            return i;
-        }
-    }
-}
-
 typedef char Tile;
 
 typedef Tile Board[MAX_SIZE];
@@ -57,6 +37,22 @@ typedef struct {
     int size;
     int capacity;
 } HashTable;
+
+int is_prime(int n) {
+    for(int i = 2; i <= (n / 2); i++)  {
+        if(n % i == 0)
+            return 0;
+    }
+    return 1;
+}
+
+int next_prime(int n) {
+    for (int i = n;; i++) {
+        if (is_prime(i)) {
+            return i;
+        }
+    }
+}
 
 HashTable new_ht() {
     HashTable ht;

@@ -1,6 +1,6 @@
 SHELL=bash
 
-all: c-build cpp-build go-build rust-build csharp-build java-build ocaml-build
+all: c-build cpp-build go-build rust-build csharp-build java-build node-build ocaml-build 
 
 c-build: c
 	gcc -O3 -march=native c/main.c -o c/puzzle.exe -lm -lpthread
@@ -34,6 +34,10 @@ java-build: java
 	cd java && \
 	javac -d out/ src/*.java && \
 	jar cvf out/puzzle.jar -C out/ .
+
+node-build: nodejs
+	cd nodejs && \
+	npm install
 
 clean:
 	rm -rf *.exe *.jar

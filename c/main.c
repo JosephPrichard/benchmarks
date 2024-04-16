@@ -4,7 +4,6 @@
 
 #include <stdio.h>
 #include <pthread.h>
-#include <semaphore.h>
 #include <errno.h>
 #include <ctype.h>
 #include "puzzle.h"
@@ -146,79 +145,89 @@ void find_paths(Runs runs) {
 }
 
 typedef struct {
-    Run* run;
-    sem_t* sem;
-    int i;
-} Task;
+    Runs runs;
+    int index;
+    pthread_mutex_t mu;
+} TaskPool;
 
-void* find_path_task(void* arg) {
-    Task* task = (Task*) arg;
-
-    struct timeval start, end;
-    gettimeofday(&start, NULL);
-
-    solve(task->run);
-
-    gettimeofday(&end, NULL);
-    task->run->time = get_time(&start, &end);
-
-    int err = sem_post(task->sem);
-    if (err != 0) {
-        printf("Fail to post semaphore: %d\n", err);
+TaskPool* new_tp(Runs runs) {
+    TaskPool* task_pool = (TaskPool*) malloc(sizeof(TaskPool));
+    if (task_pool == NULL) {
+        printf("Failed to allocate task pool\n");
         exit(1);
     }
-    return NULL;
+    task_pool->index = 0;
+    task_pool->runs = runs;
+    
+    int err = pthread_mutex_init(&task_pool->mu, NULL);
+    if (err != 0) {
+        printf("Failed to initialize the mutex lock\n");
+        exit(1);
+    }
+    return task_pool;
+}
+
+Run* take_task(TaskPool* pool) {
+    int err = pthread_mutex_lock(&pool->mu);
+    if (err != 0) {
+        printf("Failed to lock task pool mutex: err %d\n", err);
+        exit(1);
+    }
+
+    Run* run = NULL;
+    if (pool->index < pool->runs.size) {
+        run = &pool->runs.mem[pool->index++];
+    }
+
+    err = pthread_mutex_unlock(&pool->mu);
+    if (err != 0) {
+        printf("Failed to unlock task pool mutex: err %d\n", err);
+        exit(1);
+    }
+    return run;
+}
+
+void* do_task(void* arg) {
+    TaskPool* task_pool = (TaskPool*) arg;
+    for (;;) {
+        Run* run = take_task(task_pool);
+        if (run == NULL) {
+            // we stop the thread when we run out of tasks aka we cannot take anymore
+            return NULL;
+        }
+        
+        struct timeval start, end;
+        gettimeofday(&start, NULL);
+
+        solve(run);
+
+        gettimeofday(&end, NULL);
+        run->time = get_time(&start, &end);
+    }
 }
 
 void find_paths_parallel(Runs runs) {
-    pthread_t threads[runs.size];
+    int thread_count = get_num_cores();
+    pthread_t threads[thread_count];
 
-    sem_t sem;
-    int err = sem_init(&sem, 0, get_num_cores());
-    if (err != 0) {
-        printf("Fail to init semaphore: %d\n", err);
-        exit(1);
-    }
+    TaskPool* task_pool = new_tp(runs);
 
-    Task* tasks = (Task*) malloc(runs.size * sizeof(Task));
-    if (tasks == NULL) {
-        printf("Failed to allocate tasks\n");
-        exit(1);
-    }
-
-    for (int i = 0; i < runs.size; i++) {
-        err = sem_wait(&sem);
+    for (int i = 0; i < thread_count; i++) {
+        int err = pthread_create(&threads[i], NULL, do_task, task_pool);
         if (err != 0) {
-            printf("Fail to acquire semaphore: %d\n", err);
-            exit(1);
-        }
-
-        Task task;
-        task.run = &runs.mem[i];
-        task.sem = &sem;
-        task.i = i;
-        tasks[i] = task;
-        
-        err = pthread_create(&threads[i], NULL, find_path_task, &tasks[i]);
-        if (err != 0) {
-            printf("Fail to create pthread: %d\n", err);
+            printf("Fail to create pthread %d: err %d\n", i, err);
             exit(1);
         }
     }
-    for (int i = 0; i < runs.size; i++) {
-        err = pthread_join(threads[i], NULL);
+    for (int i = 0; i < thread_count; i++) {
+        int err = pthread_join(threads[i], NULL);
         if (err != 0) {
-            printf("Fail to join pthread %d\n", err);
+            printf("Fail to join pthread %d: err %d\n", i, err);
             exit(1);
         }
     }
 
-    free(tasks);
-    err = sem_destroy(&sem);
-    if (err != 0) {
-        printf("Fail to destroy semaphore: %d\n", err);
-        exit(1);
-    }
+    free(task_pool);
 }
 
 int main(int argc, char** argv) {

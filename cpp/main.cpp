@@ -17,8 +17,17 @@ bool is_space_string(std::string& str) {
     return true;
 }
 
-std::vector<std::vector<Tile>> read_puzzles(std::istream& is) {
-    std::vector<std::vector<Tile>> puzzles;
+unsigned int int_sqrt(unsigned int size) {
+    float sqf = std::sqrt(static_cast<float>(size));
+    float sq_flf = std::floor(sqf);
+    if (sqf - sq_flf != 0) {
+        return -1;
+    }
+    return static_cast<unsigned int>(sq_flf);
+}
+
+std::vector<PuzzleInput> read_inputs(std::istream& is) {
+    std::vector<PuzzleInput> puzzles;
     std::vector<Tile> curr_tiles;
 
     std::string line;
@@ -28,8 +37,20 @@ std::vector<std::vector<Tile>> read_puzzles(std::istream& is) {
 
         if (is_space_string(line)) {
            if (!curr_tiles.empty()) {
-               puzzles.emplace_back(curr_tiles);
-               curr_tiles.clear();
+                unsigned int n = int_sqrt(curr_tiles.size());
+                if (n <= 0) {
+                    printf("Size must be a perfect square, got %zu", curr_tiles.size());
+                    exit(1);
+                }
+
+                PuzzleInput input{};
+                input.n = n;
+                for (int i = 0; i < curr_tiles.size(); i++) {
+                    input.tiles[i] = curr_tiles[i];
+                }
+
+                puzzles.emplace_back(input);
+                curr_tiles.clear();
            }
         } else {
             std::string token;
@@ -61,49 +82,38 @@ std::vector<std::vector<Tile>> read_puzzles(std::istream& is) {
     return puzzles;
 }
 
-void run_puzzles(std::vector<std::unique_ptr<Solution>>& solutions, std::vector<std::vector<Tile>>& puzzles) {
-    for (auto& tiles : puzzles) {
-        auto start = std::chrono::high_resolution_clock::now();
+void run_puzzles_parallel(std::vector<PuzzleInput>& inputs, std::vector<std::unique_ptr<Solution>>& solutions) {
+    unsigned int threads_count = std::thread::hardware_concurrency();
 
-        auto solution = find_path(tiles);
+    for (int i = 0; i < inputs.size(); i++) {
+        solutions.push_back(nullptr);
+    }
 
-        auto stop = std::chrono::high_resolution_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-        solution->time = static_cast<float>(duration.count()) / 1000.0f;
+    std::vector<std::jthread> threads;
+    std::atomic<int> index = 0;
 
-        solutions.emplace_back(std::move(solution));
+    for (int i = 0; i < threads_count; i++) {
+        std::jthread thread([&index, &inputs, &solutions](){
+            for (;;) {
+                int curr_index = index++;
+                if (curr_index >= inputs.size()) {
+                    return;
+                }
+                auto& tiles = inputs[curr_index];
+                
+                auto start = std::chrono::steady_clock::now();
+
+                auto solution = find_path(tiles);
+
+                auto stop = std::chrono::steady_clock::now();
+                solution->time = std::chrono::duration<double, std::milli>(stop - start).count();
+
+                solutions[curr_index] = std::move(solution);
+            }
+        });
+        threads.emplace_back(std::move(thread));
     }
 }
-
-void run_puzzles_parallel(std::vector<std::unique_ptr<Solution>>& solutions, std::vector<std::vector<Tile>>& puzzles) {
-    unsigned int cores = std::thread::hardware_concurrency();
-    unsigned int count = std::min(cores, 64u);
-
-    std::counting_semaphore<64u> sem(10);
-
-    std::vector<std::future<std::unique_ptr<Solution>>> futures;
-    for (int i = 0; i < puzzles.size(); i++) {
-        sem.acquire();
-        auto future = std::async(std::launch::async, [](std::vector<Tile>* tiles, std::counting_semaphore<64u>* sem){
-            auto start = std::chrono::high_resolution_clock::now();
-
-            auto solution = find_path(*tiles);
-
-            auto stop = std::chrono::high_resolution_clock::now();
-            auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-            solution->time = static_cast<float>(duration.count()) / 1000.0f;
-
-            sem->release();
-
-            return solution;
-        }, &puzzles[i], &sem);
-        futures.emplace_back(std::move(future));
-    }
-
-    for (auto& future : futures) {
-        solutions.emplace_back(std::move(future.get()));
-    }
- }
 
 void print_solutions(std::vector<std::unique_ptr<Solution>>& solutions) {
     for (int i = 0; i < solutions.size(); i++) {
@@ -160,30 +170,37 @@ int main(int argc, char* argv[]) {
     }
 
     ParFlag par_flag = get_par_flag(argc, argv);
-    auto puzzles = read_puzzles(fs_in);
+    auto inputs = read_inputs(fs_in);
 
-    auto start = std::chrono::high_resolution_clock::now();
+    auto start = std::chrono::steady_clock::now();
 
     std::vector<std::unique_ptr<Solution>> solutions;
 
     switch (par_flag) {
         case SEQ: {
-            run_puzzles(solutions, puzzles);
+            for (auto& tiles : inputs) {
+                auto start = std::chrono::steady_clock::now();
+    
+                auto solution = find_path(tiles);
+
+                auto stop = std::chrono::steady_clock::now();
+                solution->time = std::chrono::duration<double, std::milli>(stop - start).count();
+
+                solutions.emplace_back(std::move(solution));
+            }
             break;
         }
         case PAR: {
-            run_puzzles_parallel(solutions, puzzles);
+            run_puzzles_parallel(inputs, solutions);
             break;
         }
     }
     
-    auto stop = std::chrono::high_resolution_clock::now();
-
-    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-    auto eteTime = ((float) duration.count()) / 1000.0f;
+    auto stop = std::chrono::steady_clock::now();
+    auto eteTime = std::chrono::duration<double, std::milli>(stop - start);
 
     print_solutions(solutions);
 
-    printf("End-to-end: %.2fms\n", eteTime);
+    printf("End-to-end: %.2fms\n", eteTime.count());
     return 0;
 }

@@ -51,18 +51,17 @@ def add_positions(pos1: Position, pos2: Position) -> Position:
 
 
 Direction = tuple[Position, Action]
-directions: list[Direction] = [((1, 0), Action.down), ((-1, 0), Action.up),
-                               ((0, 1), Action.right), ((0, -1), Action.left)]
+directions: list[Direction] = [((1, 0), Action.down), ((-1, 0), Action.up), ((0, 1), Action.right), ((0, -1), Action.left)]
 
 
 class Puzzle:
-    def __init__(self, tiles):
+    def __init__(self, tiles, dim):
         self.g = 0
         self.f = 0
         self.prev = None
         self.tiles = tiles
         self.action = Action.none
-        self.dim = floor(sqrt(len(tiles)))
+        self.dim = dim
 
     def equals(self, other: list[int]) -> bool:
         for i in range(0, len(self.tiles)):
@@ -86,7 +85,7 @@ class Puzzle:
                 return pos_of_index(i, self.dim)
         raise Exception("Puzzles should contain a 0 tile")
 
-    def hash(self):
+    def to_string(self):
         s = ''
         for tile in self.tiles:
             s += str(tile)
@@ -103,30 +102,6 @@ class Puzzle:
 
     def __lt__(self, other):
         return self.f < other.f
-
-    def neighbors(self, callback: Callable[[Self], None]):
-        zero_pos = self.find_zero()
-        zero_index = index_of_pos(zero_pos, self.dim)
-
-        for d in directions:
-            next_pos = add_positions(zero_pos, d[0])
-            next_index = index_of_pos(next_pos, self.dim)
-
-            if not in_bounds(next_pos, self.dim):
-                continue
-
-            next_puzzle = Puzzle(copy.deepcopy(self.tiles))
-
-            temp = next_puzzle.tiles[zero_index]
-            next_puzzle.tiles[zero_index] = next_puzzle.tiles[next_index]
-            next_puzzle.tiles[next_index] = temp
-
-            next_puzzle.prev = self
-            next_puzzle.action = d[1]
-            next_puzzle.g = self.g + 1
-            next_puzzle.f = next_puzzle.g + next_puzzle.heuristic()
-
-            callback(next_puzzle)
 
 
 def create_goal(size: int):
@@ -164,13 +139,31 @@ def find_path(initial: Puzzle):
             path = reconstruct_path(curr_puzzle)
             break
 
-        visited[curr_puzzle.hash()] = True
+        visited[curr_puzzle.to_string()] = True
 
-        def on_neighbor(neighbor: Puzzle):
-            if not visited.get(neighbor.hash(), False):
-                heapq.heappush(frontier, neighbor)
+        zero_pos = curr_puzzle.find_zero()
+        zero_index = index_of_pos(zero_pos, curr_puzzle.dim)
 
-        curr_puzzle.neighbors(on_neighbor)
+        for direction in directions:
+            next_pos = add_positions(zero_pos, direction[0])
+            next_index = index_of_pos(next_pos, curr_puzzle.dim)
+
+            if not in_bounds(next_pos, curr_puzzle.dim):
+                continue
+
+            next_puzzle = Puzzle(copy.deepcopy(curr_puzzle.tiles), curr_puzzle.dim)
+
+            temp = next_puzzle.tiles[zero_index]
+            next_puzzle.tiles[zero_index] = next_puzzle.tiles[next_index]
+            next_puzzle.tiles[next_index] = temp
+
+            next_puzzle.prev = curr_puzzle
+            next_puzzle.action = direction[1]
+            next_puzzle.g = curr_puzzle.g + 1
+            next_puzzle.f = next_puzzle.g + next_puzzle.heuristic()
+
+            if not visited.get(next_puzzle.to_string(), False):
+                heapq.heappush(frontier, next_puzzle)
 
     end = time.perf_counter()
     t = (end - start) * 1000.0
@@ -192,7 +185,8 @@ def read_puzzles(s: str) -> list[Puzzle]:
                     curr_tiles.append(int(token))
         else:
             if len(curr_tiles) > 0:
-                puzzles.append(Puzzle(curr_tiles))
+                dim = floor(sqrt(len(curr_tiles)))
+                puzzles.append(Puzzle(curr_tiles, dim))
                 curr_tiles = []
     return puzzles
 

@@ -53,3 +53,5 @@ csharp/npuzzle/obj
 csharp/npuzzle/publish
 
 output
+
+*/node_modules

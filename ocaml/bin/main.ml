@@ -1,5 +1,4 @@
 open Puzzle_solver
-open Unix
 
 let run_solutions tiles =
   List.mapi

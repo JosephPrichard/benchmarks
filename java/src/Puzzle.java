@@ -118,7 +118,7 @@ public class Puzzle
         }
         return true;
     }
-
+    
     @Override
     public String toString() {
         var stringBuilder = new StringBuilder();
