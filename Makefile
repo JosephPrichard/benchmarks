@@ -6,7 +6,7 @@ c-build: c
 	gcc -O3 -march=native c/main.c -o c/puzzle.exe -lm -lpthread
 
 cpp-build: cpp
-	g++ -O3 -march=native -std=c++20 cpp/main.cpp -o cpp/puzzle.exe
+	g++ -O3 -march=native -std=c++20 cpp/main.cpp -o cpp/puzzle.exe -lm -lpthread
 
 go-build: go
 	cd go && \

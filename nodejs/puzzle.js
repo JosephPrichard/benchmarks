@@ -269,7 +269,7 @@ function runPuzzles(puzzles) {
 
         solutions.push({path, time, nodes});
     }
-    return [];
+    return solutions;
 }
 
 function main() {
@@ -307,7 +307,7 @@ function main() {
     }
 
     console.log(`\nTotal: ${totalTime} ms, ${totalNodes} nodes`);
-    console.log(`End-to-end {totalTime} ms`);
+    console.log(`End-to-end: {totalTime} ms`);
 }
 
 main();

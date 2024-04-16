@@ -15,8 +15,19 @@
     #include <unistd.h>
 #endif
 
-#define MAX_RUNS 1000
 #define MAX_LINE 128
+
+int get_num_cores() {
+    int num_cores = 16;
+    #ifdef _WIN32
+        SYSTEM_INFO sysinfo;
+        GetSystemInfo(&sysinfo);
+        num_cores = sysinfo.dwNumberOfProcessors;
+    #elif __linux__
+        num_cores = sysconf(_SC_NPROCESSORS_ONLN);
+    #endif
+    return num_cores;
+}
 
 int int_sqrt(int size) {
     float sqf = sqrtf((float) size);
@@ -27,14 +38,14 @@ int int_sqrt(int size) {
     return (int) sq_flf;
 }
 
-void init_input(Run* input, int size) {
-    input->rows = int_sqrt(size);
-    if (input->rows < 0) {
+void init_run(Run* run, int size) {
+    run->time = 0;
+    run->steps = 0;
+    run->nodes = 0;
+    run->rows = int_sqrt(size);
+    if (run->rows < 0) {
         printf("Board size must be a perfect square, %d is not\n", size);
         exit(1);
-    }
-    for (int i = 0; i < size; i++) {
-        input->goal_brd[i] = (Tile) i;
     }
 }
 
@@ -47,21 +58,41 @@ int is_space_string(char* str) {
     return 1;
 }
 
-int parse_inputs(Run inputs[MAX_RUNS], FILE* input_file) {
-    int board_index = 0;
+typedef struct {
+    Run* mem;
+    int size;
+    int capacity;
+} Runs;
+
+Runs parse_inputs(FILE* input_file) {
+    Runs runs;
+    runs.size = 0;
+    runs.capacity = 10;
+
+    runs.mem = (Run*) malloc(sizeof(Run) * runs.capacity);
+    if (runs.mem == NULL) {
+        printf("Failed to allocate runs array");
+        exit(1);
+    }
+
     int tile_index = 0;
 
     char line[MAX_LINE] = {0};
     while (fgets(line, sizeof(line), input_file)) {
-        if (is_space_string(line)) {            
-            if (board_index >= MAX_RUNS) {
-                printf("Maximum of %d inputs is allowed\n", MAX_RUNS);
-                exit(1);
-            }
-            init_input(&inputs[board_index], tile_index);
-
+        if (is_space_string(line)) {
+            init_run(&runs.mem[runs.size], tile_index);
             tile_index = 0;
-            board_index += 1;
+            runs.size += 1;
+
+            if (runs.size >= runs.capacity) {
+                runs.capacity *= 2;
+                Run* next_runs = (Run*) realloc(runs.mem, sizeof(Run) * runs.capacity);
+                if (next_runs == NULL) {
+                    printf("Failed to reallocate runs array");
+                    exit(1);
+                }
+                runs.mem = next_runs;
+            }
         } else {
             char* tok;
             char* delim = " \n";
@@ -84,7 +115,7 @@ int parse_inputs(Run inputs[MAX_RUNS], FILE* input_file) {
                     exit(1);
                 }
 
-                inputs[board_index].initial_brd[tile_index] = tile;
+                runs.mem[runs.size].initial_brd[tile_index] = tile;
                 tile_index += 1;
 
                 tok = strtok(NULL, delim);
@@ -93,7 +124,7 @@ int parse_inputs(Run inputs[MAX_RUNS], FILE* input_file) {
         memset(line, 0, MAX_LINE);
     }
 
-    return board_index;
+    return runs;
 }
 
 double get_time(struct timeval* start, struct timeval* end) {
@@ -101,12 +132,12 @@ double get_time(struct timeval* start, struct timeval* end) {
     return ((double) elapsed_usec) / 1000.0;
 }
 
-void find_paths(Run runs[], int count) {
-    for (int i = 0; i < count; i++) {
+void find_paths(Runs runs) {
+    for (int i = 0; i < runs.size; i++) {
         struct timeval start, end;
         gettimeofday(&start, NULL);
 
-        Run* run = &runs[i];
+        Run* run = &runs.mem[i];
         solve(run);
 
         gettimeofday(&end, NULL);
@@ -122,7 +153,6 @@ typedef struct {
 
 void* find_path_task(void* arg) {
     Task* task = (Task*) arg;
-    sem_wait(task->sem);
 
     struct timeval start, end;
     gettimeofday(&start, NULL);
@@ -132,49 +162,63 @@ void* find_path_task(void* arg) {
     gettimeofday(&end, NULL);
     task->run->time = get_time(&start, &end);
 
-    sem_post(task->sem);
+    int err = sem_post(task->sem);
+    if (err != 0) {
+        printf("Fail to post semaphore: %d\n", err);
+        exit(1);
+    }
     return NULL;
 }
 
-int get_num_cores() {
-    int num_cores = 16;
-    #ifdef _WIN32
-        SYSTEM_INFO sysinfo;
-        GetSystemInfo(&sysinfo);
-        num_cores = sysinfo.dwNumberOfProcessors;
-    #elif __linux__
-        num_cores = sysconf(_SC_NPROCESSORS_ONLN);
-    #endif
-    printf("System cores: %d\n", num_cores);
-    return num_cores;
-}
-
-void find_paths_parallel(Run runs[], int count) {
-    pthread_t threads[count];
+void find_paths_parallel(Runs runs) {
+    pthread_t threads[runs.size];
 
     sem_t sem;
-    sem_init(&sem, 0, get_num_cores());
+    int err = sem_init(&sem, 0, get_num_cores());
+    if (err != 0) {
+        printf("Fail to init semaphore: %d\n", err);
+        exit(1);
+    }
 
-    Task* tasks = malloc(count * sizeof(Task));
+    Task* tasks = (Task*) malloc(runs.size * sizeof(Task));
     if (tasks == NULL) {
         printf("Failed to allocate tasks\n");
         exit(1);
     }
 
-    for (int i = 0; i < count; i++) {
+    for (int i = 0; i < runs.size; i++) {
+        err = sem_wait(&sem);
+        if (err != 0) {
+            printf("Fail to acquire semaphore: %d\n", err);
+            exit(1);
+        }
+
         Task task;
-        task.run = &runs[i];
+        task.run = &runs.mem[i];
         task.sem = &sem;
         task.i = i;
         tasks[i] = task;
-        pthread_create(&threads[i], NULL, find_path_task, &tasks[i]);
+        
+        err = pthread_create(&threads[i], NULL, find_path_task, &tasks[i]);
+        if (err != 0) {
+            printf("Fail to create pthread: %d\n", err);
+            exit(1);
+        }
     }
-    for (int i = 0; i < count; i++) {
-        pthread_join(threads[i], NULL);
+    for (int i = 0; i < runs.size; i++) {
+        err = pthread_join(threads[i], NULL);
+        if (err != 0) {
+            printf("Fail to join pthread %d\n", err);
+            exit(1);
+        }
     }
 
     free(tasks);
-    sem_destroy(&sem);
+    err = sem_destroy(&sem);
+    if (err != 0) {
+        printf("Fail to destroy semaphore: %d\n", err);
+        exit(1);
+    }
 }
 
 int main(int argc, char** argv) {
@@ -195,17 +239,16 @@ int main(int argc, char** argv) {
         flag = argv[2];
     }
 
-    Run runs[MAX_RUNS] = {0};
-    int count = parse_inputs(runs, input_file);
+    Runs runs = parse_inputs(input_file);
     fclose(input_file);
 
     struct timeval start, end;
     gettimeofday(&start, NULL);
 
     if (strcmp(flag, "seq") == 0) {
-        find_paths(runs, count);
+        find_paths(runs);
     } else if (strcmp(flag, "par") == 0) {
-        find_paths_parallel(runs, count);
+        find_paths_parallel(runs);
     } else {
         printf("Parallelism flag must be seq or par, got %s\n", flag);
         return 1;
@@ -214,24 +257,25 @@ int main(int argc, char** argv) {
     gettimeofday(&end, NULL);
     double ete_time = get_time(&start, &end);
 
-    for (int i = 0; i < count; i++) {
+    for (int i = 0; i < runs.size; i++) {
         printf("Solution for puzzle %d\n", i + 1);
-        print_solution(&runs[i]);
+        Run* run = &runs.mem[i];
+        print_solution(run);
+        free(run->solution);
     }
 
     int total_nodes = 0;
     double total_time = 0;
-    for (int i = 0; i < count; i++) {
-        double time = runs[i].time;
-        int nodes = runs[i].nodes;
-
-        printf("Puzzle %d: %f ms, %d nodes\n", i + 1, time, nodes);
-        total_time += time;
-        total_nodes += nodes;
+    for (int i = 0; i < runs.size; i++) {
+        Run* run = &runs.mem[i];
+        printf("Puzzle %d: %f ms, %d nodes\n", i + 1, run->time, run->nodes);
+        total_time += run->time;
+        total_nodes += run->nodes;
     }
 
-    printf("\nTotal: %f ms, %d nodes\n", total_time, total_nodes);
+    free(runs.mem);
 
+    printf("\nTotal: %f ms, %d nodes\n", total_time, total_nodes);
     printf("End-to-end: %f ms", ete_time);
     return 0;
 }

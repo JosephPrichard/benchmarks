@@ -13,10 +13,6 @@ import java.util.concurrent.Executors;
  */
 public class Main
 {
-    private static double nanosToMs(long nanos) {
-        return ((double) nanos) / 1_000_000;
-    }
-
     private static List<Solution> runSolvers(List<Puzzle> states) {
         List<Solution> solutions = new ArrayList<>();
         for (var initialState : states) {
@@ -25,7 +21,7 @@ public class Main
             var solver = new PuzzleSolver(initialState.length());
             var solution = solver.findSolution(initialState);
 
-            var time = nanosToMs(System.nanoTime() - startTime);
+            var time = ((double) (System.nanoTime() - startTime)) / 1_000_000;
             var nodes = solver.getNodes();
 
             solutions.add(new Solution(time, nodes, solution));
@@ -44,7 +40,7 @@ public class Main
                 var solver = new PuzzleSolver(state.length());
                 var solution = solver.findSolution(state);
 
-                var time = nanosToMs(System.nanoTime() - startTime);
+                var time = ((double) (System.nanoTime() - startTime)) / 1_000_000;
                 var nodes = solver.getNodes();
 
                 return new Solution(time, nodes, solution);
@@ -92,7 +88,7 @@ public class Main
             }
         };
 
-        var eteTime = nanosToMs(System.nanoTime() - startTime);
+        var eteTime = ((double) (System.nanoTime() - startTime)) / 1_000_000;
         
         for (var i = 0; i < solutions.size(); i++) {
             var solution = solutions.get(i);

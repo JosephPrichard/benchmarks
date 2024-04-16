@@ -17,10 +17,6 @@ namespace npuzzle
             }
         }
 
-        static double GetTime(Stopwatch stopwatch) {
-            return ((double) stopwatch.ElapsedTicks) / (Stopwatch.Frequency / 1000L);
-        }
-
         static List<Solution> RunSolvers(List<Puzzle> states) {
             List<Solution> solutions = [];
             foreach (var state in states)
@@ -30,7 +26,8 @@ namespace npuzzle
                 var solution = solver.FindSolution(state);
                 stopwatch.Stop();
 
-                var time = GetTime(stopwatch);
+                var time = ((double) stopwatch.ElapsedTicks) / (Stopwatch.Frequency / 1000L);
+
                 solutions.Add(new Solution(time, solver.Nodes, solution));
             }
             return solutions;
@@ -49,7 +46,7 @@ namespace npuzzle
                     var solution = solver.FindSolution(state);
                     stopwatch.Stop();
 
-                    var time = GetTime(stopwatch);
+                    var time = ((double) stopwatch.ElapsedTicks) / (Stopwatch.Frequency / 1000L);
                     return new Solution(time, solver.Nodes, solution);
                 });
                 tasks.Add(task);
@@ -95,7 +92,7 @@ namespace npuzzle
             }
 
             stopwatch.Stop();
-            var eteTime = GetTime(stopwatch);
+            var eteTime = ((double) stopwatch.ElapsedTicks) / (Stopwatch.Frequency / 1000L);
             
             for (var i = 0; i < solutions.Count; i++) 
             {

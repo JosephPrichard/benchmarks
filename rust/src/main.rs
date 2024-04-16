@@ -59,9 +59,10 @@ fn run_puzzle<const N: usize>(puzzle: Puzzle<N>, mem_flag: MemFlag) -> (f64, u32
     };
 
     let start = Instant::now();
-    let (solution, nodes) = find_path(puzzle);
-    let elapsed = start.elapsed();
 
+    let (solution, nodes) = find_path(puzzle);
+
+    let elapsed = start.elapsed();
     let time = (elapsed.as_micros() as f64) / 1000f64;
     
     (time, nodes, solution)
@@ -72,23 +73,20 @@ enum AnySolution {
     FifteenSolution(Vec<Puzzle<16>>),
 }
 
-fn run_any_puzzle(puzzle: AnyPuzzle, flag: MemFlag) -> (f64, u32, AnySolution) {
-    match puzzle {
-        EightPuzzle(puzzle) => {
-            let (time, nodes, solution) = run_puzzle(puzzle.to_owned(), flag);
-            (time, nodes, EightSolution(solution))
-        }
-        FifteenPuzzle(puzzle) => {
-            let (time, nodes, solution) = run_puzzle(puzzle.to_owned(), flag);
-            (time, nodes, FifteenSolution(solution))
-        }
-    }
-}
-
 fn run_puzzles(puzzles: Vec<AnyPuzzle>, mem_flag: MemFlag) -> Vec<(f64, u32, AnySolution)> {
     let mut solutions = vec![];
     for puzzle in puzzles {
-        solutions.push(run_any_puzzle(puzzle, mem_flag));
+        let solution = match puzzle {
+            EightPuzzle(puzzle) => {
+                let (time, nodes, solution) = run_puzzle(puzzle.to_owned(), mem_flag);
+                (time, nodes, EightSolution(solution))
+            }
+            FifteenPuzzle(puzzle) => {
+                let (time, nodes, solution) = run_puzzle(puzzle.to_owned(), mem_flag);
+                (time, nodes, FifteenSolution(solution))
+            }
+        };
+        solutions.push(solution);
     }
     return solutions;
 }
@@ -102,16 +100,20 @@ fn run_puzzles_parallel(puzzles: Vec<AnyPuzzle>, mem_flag: MemFlag) -> Vec<(f64,
 
     let solutions = puzzles
         .into_par_iter()
-        .map(|puzzle| { run_any_puzzle(puzzle, mem_flag) })
+        .map(|puzzle| { 
+            match puzzle {
+                EightPuzzle(puzzle) => {
+                    let (time, nodes, solution) = run_puzzle(puzzle.to_owned(), mem_flag);
+                    (time, nodes, EightSolution(solution))
+                }
+                FifteenPuzzle(puzzle) => {
+                    let (time, nodes, solution) = run_puzzle(puzzle.to_owned(), mem_flag);
+                    (time, nodes, FifteenSolution(solution))
+                }
+            }
+        })
         .collect();
     solutions
-}
-
-fn print_solution<const N: usize>(solution: &Vec<Puzzle<N>>, nodes: u32) {
-    for puzzle in solution {
-        println!("{}", puzzle.action);
-    }
-    println!("Solved in {} steps, expanded {} nodes\n", solution.len() - 1, nodes);
 }
 
 #[derive(Copy, Clone)]
@@ -148,6 +150,26 @@ fn read_flags(args: &Vec<String>) -> (MemFlag, ParFlag) {
     return (mem_flag, par_flag)
 }
 
+fn print_solutions(solutions: &Vec<(f64, u32, AnySolution)>) {
+    for (i, (_, nodes, solution)) in solutions.iter().enumerate() {
+        println!("Solution for puzzle {}", (i + 1));
+        match solution {
+            EightSolution(solution) => {
+                for puzzle in solution {
+                    println!("{}", puzzle.action);
+                }
+                println!("Solved in {} steps, expanded {} nodes\n", solution.len() - 1, nodes);
+            },
+            FifteenSolution(solution) =>{
+                for puzzle in solution {
+                    println!("{}", puzzle.action);
+                }
+                println!("Solved in {} steps, expanded {} nodes\n", solution.len() - 1, nodes);
+            },
+        }
+    }
+}
+
 fn main() {
     let args: Vec<String> = env::args().collect();
     if args.len() < 2 {
@@ -169,13 +191,7 @@ fn main() {
     let elapsed = start.elapsed();
     let ete_time = (elapsed.as_micros() as f64) / 1000f64;
     
-    for (i, (_, nodes, solution)) in solutions.iter().enumerate() {
-        println!("Solution for puzzle {}", (i + 1));
-        match solution {
-            EightSolution(solution) => print_solution(solution, *nodes),
-            FifteenSolution(solution) => print_solution(solution, *nodes),
-        }
-    }
+    print_solutions(&solutions);
 
     let mut total_time = 0f64;
     let mut total_nodes = 0;

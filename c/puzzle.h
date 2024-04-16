@@ -11,7 +11,6 @@
 #include <sys/time.h>
 #include <stdlib.h>
 
-#define LONGEST_SOL 100
 #define MAX_SIZE (4 * 4)
 #define NEIGHBOR_CNT 4
 #define CHILD_CNT 2
@@ -47,7 +46,7 @@ unsigned long long hash_board(const Board brd, int size) {
     unsigned long long hash = 0;
     for (int i = 0; i < size; i++) {
         Tile tile = brd[i];
-        long long mask = ((unsigned long long) tile) << (i * 4);
+        unsigned long long mask = ((unsigned long long) tile) << (i * 4);
         hash = (hash | mask);
     }
     return hash;
@@ -92,9 +91,8 @@ void rehash(HashTable* ht) {
 
     ht->capacity = next_prime(ht->capacity * 2);
     ht->table = (unsigned long long*) calloc(ht->capacity, sizeof(unsigned long long));
-
     if (ht->table == NULL) {
-        printf("hash_table reallocation failed\n");
+        printf("hash_table allocation failed\n");
         exit(1);
     }
 
@@ -266,7 +264,7 @@ int pop_heap(Heap* heap, Arena* arena) {
             break;
         }
     }
-    heap->size--;
+    heap->size -= 1;
     return top;
 }
 
@@ -347,9 +345,8 @@ void print_action(const Action* action, int rows, FILE* file) {
 
 typedef struct {
     Board initial_brd;
-    Board goal_brd;
     int rows;
-    Action solution[LONGEST_SOL];
+    Action* solution;
     int steps;
     double time;
     int nodes;
@@ -364,12 +361,25 @@ void print_solution(Run* run) {
 }
 
 void reconstruct_path(Arena* arena, int leaf_offset, Run* run) {
+    int capacity = 10;
+    run->solution = (Action*) malloc(sizeof(Action) * capacity);
+    if (run->solution == NULL) {
+        printf("Failed to allocate solution buffer");
+        exit(1);
+    }
+
     int i;
     for(i = 0; leaf_offset != -1; i++) {
-        if (i >= LONGEST_SOL) {
-            printf("An optimal solution should be no longer than %d steps\n", LONGEST_SOL);
-            exit(1);
+        if (i >= capacity) {
+            capacity *= 2;
+            Action* next_solution = (Action*) realloc(run->solution, sizeof(Action) * capacity);
+            if (next_solution == NULL) {
+                printf("Failed to reallocate solution buffer");
+                exit(1);
+            }
+            run->solution = next_solution;
         }
+
         Puzzle* puzzle = &arena->mem[leaf_offset];
         Action* solution = &run->solution[i];
 
@@ -388,7 +398,11 @@ void solve(Run* run) {
     int rows = run->rows;
     int size = rows * rows;
 
-    unsigned long long goal_hash = hash_board(run->goal_brd, size);
+    Board goal_brd = {0};
+    for (int i = 0; i < size; i++) {
+        goal_brd[i] = (Tile) i;
+    }
+    unsigned long long goal_hash = hash_board(goal_brd, size);
 
     Arena arena = new_arena();
 
