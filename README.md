@@ -1,13 +1,13 @@
-# NPuzzle Solver
+# Sliding Puzzle Benchmarks
 
-Implementations of sliding puzzle solvers [sliding puzzle problem](https://en.wikipedia.org/wiki/15_puzzle) using the AStar algorithm in various languages.
+Benchmarking implementations of sliding puzzle solvers [sliding puzzle problem](https://en.wikipedia.org/wiki/15_puzzle) using the AStar algorithm in various languages.
 Each implementation is guaranteed to find the shortest number of steps to solve any solvable NPuzzle. 
 
 The sliding puzzle problem is a space-exploration problem involving list/array traversal, map/priority queue usage, copying, and lots of memory allocation. Currently includes implementations for Java, C, C++, C#, Rust, Go, OCaml, Javascript, and Python. Many more to come - implementing a sliding puzzle solver has become my primary way to learn a new language. 
 
 # Usage
 Any puzzle solver executable can be invoked with a command line argument. The command line argument is a path to a file containing newline seperated puzzles to solve.
-An example of how valid puzzle files look like n=are in the files `8puzzles-*.txt` and `15puzzles-*.txt`. Random puzzle file inputs can be generated in `PuzzleGenerator.java` in the java implementation.
+An example of how valid puzzle files look like are in the files `8puzzles-*.txt` and `15puzzles-*.txt`. Random puzzle file inputs can be generated in `PuzzleGenerator.java` in the java implementation.
 
 An example 3x3 puzzle input looks like so
 ```
@@ -40,7 +40,7 @@ Run the benchmarks using the `run-bench.sh` script.
 $ ./run-bench.sh 8puzzles-small.txt
 ```
 
-Additionally, you can generate new puzzle inputs using the `./run-generate.sh` script. This is reccomended over making your inputs by hand.
+Additionally, you can generate new puzzle inputs using the `./run-generate.sh` script. This is recommended over making your inputs by hand.
 
 ```shell
 $ ./run-graph.sh

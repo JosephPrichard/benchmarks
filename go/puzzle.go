@@ -311,10 +311,10 @@ func FindPaths(puzzles []Puzzle) []Solution {
 		solution, nodes := FindPath(puzzle)
 
 		duration := time.Since(start).Microseconds()
-		time := float64(duration) / 1000.0
+		t := float64(duration) / 1000.0
 
 		solutions = append(solutions, Solution{
-			time:  time,
+			time:  t,
 			nodes: nodes,
 			path:  solution,
 		})
@@ -339,10 +339,10 @@ func FindPathsParallel(puzzles []Puzzle) []Solution {
 			solution, nodes := FindPath(puzzle)
 
 			duration := time.Since(start).Microseconds()
-			time := float64(duration) / 1000.0
+			t := float64(duration) / 1000.0
 
 			solutions[i] = Solution{
-				time:  time,
+				time:  t,
 				nodes: nodes,
 				path:  solution,
 			}
