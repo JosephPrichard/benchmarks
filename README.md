@@ -3,7 +3,7 @@
 Benchmarking implementations of sliding puzzle solvers [sliding puzzle problem](https://en.wikipedia.org/wiki/15_puzzle) using the AStar algorithm in various languages.
 Each implementation is guaranteed to find the shortest number of steps to solve any solvable NPuzzle. 
 
-The sliding puzzle problem is a space-exploration problem involving list/array traversal, map/priority queue usage, copying, and lots of memory allocation. Currently includes implementations for Java, C, C++, C#, Rust, Go, OCaml, Javascript, and Python. Many more to come - implementing a sliding puzzle solver has become my primary way to learn a new language. 
+The sliding puzzle problem is a space-exploration problem involving list/array traversal, map/priority queue usage, copying, and lots of memory allocation. Currently includes implementations for Java, C, C#, Rust, Go, OCaml, Javascript, and Python. Many more to come - implementing a sliding puzzle solver has become my primary way to learn a new language. 
 
 # Usage
 Any puzzle solver executable can be invoked with a command line argument. The command line argument is a path to a file containing newline seperated puzzles to solve.
@@ -56,8 +56,6 @@ The following results are for the `8puzzles-large.txt` file, containing 1000 3x3
 |------------|------------|-------------|---------|----------|
 | C          | 10.953     | 160.397     | 727635  | yes      |
 | C          | 93.403     | 93.378      | 727635  | no       |
-| C++        | 18.12      | 276.21      | 722223  | yes      |
-| C++        | 104.92     | 104.89      | 722223  | no       |
 | Rust Arena | 10.641     | 158.446     | 705454  | yes      |
 | Rust Arena | 87.251     | 86.721      | 705454  | no       |
 | Rust Rc    | 17.259     | 259.907     | 705454  | yes      |
@@ -80,8 +78,6 @@ These results are for the `15puzzles-large.txt` file, containing 100 4x4 puzzles
 |------------|------------|-------------|-----------|----------|
 | C          | 2994.5950  | 13169.640   | 18283069  | yes      |
 | C          | 7624.637   | 7624.629    | 18283069  | no       |
-| C++        | 7100.01    | 20758.30    | 19189412  | yes      |
-| C++        | 13682.83   | 15604.88    | 19189412  | no       |
 | Rust Arena | 1996.415   | 6994.175    | 15609985  | yes      |
 | Rust Arena | 4513.046   | 4512.973    | 15609985  | no       |
 | Rust Rc    | 3304.802   | 12440.968   | 15609985  | yes      |
