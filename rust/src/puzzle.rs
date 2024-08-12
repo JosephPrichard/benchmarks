@@ -60,7 +60,6 @@ const fn int_sqrt(n: i32) -> i32 {
 }
 
 impl<const N: usize> Puzzle<N> {
-
     const DIM: i32 = int_sqrt(N as i32);
 
     pub fn from_tiles(tiles: [Tile; N]) -> Self {

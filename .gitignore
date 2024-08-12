@@ -44,6 +44,8 @@ rust/target/*
 
 *.exe
 *.jar
+*.pdb
+*.obj
 
 out-*.txt
 
@@ -55,3 +57,5 @@ csharp/npuzzle/publish
 output
 
 */node_modules
+
+zig/zig-cache

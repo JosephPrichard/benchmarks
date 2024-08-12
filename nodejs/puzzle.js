@@ -29,15 +29,15 @@ function tilesEquals(tiles, other) {
     return true;
 }
 
-function heuristic(tiles, dim) {
+function heuristic(tiles, n) {
     let h = 0;
     for (let i = 0; i < tiles.length; i++) {
         const t = tiles[i];
         if (t != 0) {
-            const row1 = Math.floor(i / dim);
-            const col1 = i % dim;
-            const row2 = Math.floor(t / dim);
-            const col2 = t % dim;
+            const row1 = Math.floor(i / n);
+            const col1 = i % n;
+            const row2 = Math.floor(t / n);
+            const col2 = t % n;
             h += Math.abs(row2 - row1) + Math.abs(col2 - col1);
         }
     }
@@ -57,23 +57,8 @@ function tilesToString(tiles) {
     return tiles.join('');
 }
 
-function printString(dim) {
-    let s = "";
-    for (let i = 0; i < tiles.length; i++) {
-        if (tiles[i] === 0) {
-            s += "  ";
-        } else {
-            s += tiles[i] + " ";
-        }
-        if ((i + 1) % dim === 0) {
-            s += "\n";
-        }
-    }
-    return s
-}
-
-function inBounds(row, col, dim) {
-    return row >= 0 && row < dim && col >= 0 && col < dim;
+function inBounds(row, col, n) {
+    return row >= 0 && row < n && col >= 0 && col < n;
 }
 
 function createGoal(size) {
@@ -104,7 +89,7 @@ function reconstructPath(curr) {
 }
 
 function findPath(initial) {
-    const dim = Math.floor(Math.sqrt(initial.tiles.length));
+    const n = Math.floor(Math.sqrt(initial.tiles.length));
 
     const visited = new Map();
     const frontier = new Heap((p1, p2) => p1.f - p2.f);
@@ -125,8 +110,8 @@ function findPath(initial) {
         visited.set(tilesStr, true);
 
         const zeroIndex = findZero(currPuzzle.tiles);
-        const zeroRow = Math.floor(zeroIndex / dim);
-        const zeroCol = zeroIndex % dim;
+        const zeroRow = Math.floor(zeroIndex / n);
+        const zeroCol = zeroIndex % n;
 
         for (let i = 0; i < DIRECTIONS.length; i++) {
             const {row, col} = DIRECTIONS[i];
@@ -134,11 +119,11 @@ function findPath(initial) {
             const nextRow = zeroRow + row;
             const nextCol = zeroCol + col;
 
-            if (!inBounds(nextRow, nextCol, dim)) {
+            if (!inBounds(nextRow, nextCol, n)) {
                 continue;
             }
 
-            const nextIndex = nextRow * dim + nextCol;
+            const nextIndex = nextRow * n + nextCol;
             const nextPuzzle = newPuzzle([...currPuzzle.tiles]);
 
             const temp = nextPuzzle.tiles[zeroIndex];
@@ -148,7 +133,7 @@ function findPath(initial) {
             nextPuzzle.prev = currPuzzle;
             nextPuzzle.action = i + 1;
             nextPuzzle.g = currPuzzle.g + 1;
-            nextPuzzle.f = nextPuzzle.g + heuristic(nextPuzzle.tiles, dim);
+            nextPuzzle.f = nextPuzzle.g + heuristic(nextPuzzle.tiles, n);
 
             const tilesStr = tilesToString(nextPuzzle.tiles);
             if (!visited.get(tilesStr)) {

@@ -116,6 +116,26 @@ fn run_puzzles_parallel(puzzles: Vec<AnyPuzzle>, mem_flag: MemFlag) -> Vec<(f64,
     solutions
 }
 
+fn print_solutions(solutions: &Vec<(f64, u32, AnySolution)>) {
+    for (i, (_, nodes, solution)) in solutions.iter().enumerate() {
+        println!("Solution for puzzle {}", (i + 1));
+        match solution {
+            EightSolution(solution) => {
+                for puzzle in solution {
+                    println!("{}", puzzle.action);
+                }
+                println!("Solved in {} steps, expanded {} nodes\n", solution.len() - 1, nodes);
+            },
+            FifteenSolution(solution) =>{
+                for puzzle in solution {
+                    println!("{}", puzzle.action);
+                }
+                println!("Solved in {} steps, expanded {} nodes\n", solution.len() - 1, nodes);
+            },
+        }
+    }
+}
+
 #[derive(Copy, Clone)]
 enum MemFlag {
     Arena, Rc,
@@ -148,26 +168,6 @@ fn read_flags(args: &Vec<String>) -> (MemFlag, ParFlag) {
     };
 
     return (mem_flag, par_flag)
-}
-
-fn print_solutions(solutions: &Vec<(f64, u32, AnySolution)>) {
-    for (i, (_, nodes, solution)) in solutions.iter().enumerate() {
-        println!("Solution for puzzle {}", (i + 1));
-        match solution {
-            EightSolution(solution) => {
-                for puzzle in solution {
-                    println!("{}", puzzle.action);
-                }
-                println!("Solved in {} steps, expanded {} nodes\n", solution.len() - 1, nodes);
-            },
-            FifteenSolution(solution) =>{
-                for puzzle in solution {
-                    println!("{}", puzzle.action);
-                }
-                println!("Solved in {} steps, expanded {} nodes\n", solution.len() - 1, nodes);
-            },
-        }
-    }
 }
 
 fn main() {

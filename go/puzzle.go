@@ -25,17 +25,17 @@ type Position struct {
 	col int
 }
 
-func IndexToPos(i int, dim int) Position {
-	return Position{row: i / dim, col: i % dim}
+func IndexToPos(i int, n int) Position {
+	return Position{row: i / n, col: i % n}
 }
 
-func (pos Position) ToIndex(dim int) int {
-	return pos.row*dim + pos.col
+func (pos Position) ToIndex(n int) int {
+	return pos.row*n + pos.col
 }
 
-func (pos Position) InBounds(dim int) bool {
-	return pos.row >= 0 && pos.row < dim &&
-		pos.col >= 0 && pos.col < dim
+func (pos Position) InBounds(n int) bool {
+	return pos.row >= 0 && pos.row < n &&
+		pos.col >= 0 && pos.col < n
 }
 
 func (pos Position) Add(rhs Position) Position {
@@ -50,11 +50,11 @@ type Puzzle struct {
 	g      int
 	f      int
 	action int
-	dim    int
+	n    int
 }
 
-func NewPuzzle(prev *Puzzle, tiles []Tile, dim int) Puzzle {
-	return Puzzle{prev: prev, tiles: tiles, dim: dim}
+func NewPuzzle(prev *Puzzle, tiles []Tile, n int) Puzzle {
+	return Puzzle{prev: prev, tiles: tiles, n: n}
 }
 
 func NewGoal(len int) []Tile {
@@ -86,27 +86,17 @@ func (puzzle *Puzzle) PrintAction() string {
 
 func (puzzle *Puzzle) PrintPuzzle() string {
 	var sb strings.Builder
-	dim := IntSqrt(len(puzzle.tiles))
 	for i, tile := range puzzle.tiles {
 		if tile == 0 {
 			sb.WriteString("  ")
 		} else {
 			sb.WriteString(fmt.Sprintf("%d ", tile))
 		}
-		if (i+1)%dim == 0 {
+		if (i+1)%puzzle.n == 0 {
 			sb.WriteString("\n")
 		}
 	}
 	return sb.String()
-}
-
-func Equals(tiles []Tile, other []Tile) bool {
-	for i, tile := range tiles {
-		if tile != other[i] {
-			return false
-		}
-	}
-	return true
 }
 
 func abs(i int) int {
@@ -119,8 +109,8 @@ func abs(i int) int {
 func (puzzle *Puzzle) Heuristic() int {
 	h := 0
 	for i, tile := range puzzle.tiles {
-		pos1 := IndexToPos(i, puzzle.dim)
-		pos2 := IndexToPos(int(tile), puzzle.dim)
+		pos1 := IndexToPos(i, puzzle.n)
+		pos2 := IndexToPos(int(tile), puzzle.n)
 		if tile != 0 {
 			h += abs(pos2.row-pos1.row) + abs(pos2.col-pos1.col)
 		}
@@ -131,7 +121,7 @@ func (puzzle *Puzzle) Heuristic() int {
 func (puzzle *Puzzle) FindZero() Position {
 	for i, tile := range puzzle.tiles {
 		if tile == 0 {
-			return IndexToPos(i, puzzle.dim)
+			return IndexToPos(i, puzzle.n)
 		}
 	}
 	panic("Puzzle contains no zero - this should never happen")
@@ -166,21 +156,23 @@ func (puzzle *Puzzle) OnNeighbors(onNeighbor func(puzzle *Puzzle)) {
 	zeroPos := puzzle.FindZero()
 	for _, direction := range directions {
 		newPos := zeroPos.Add(direction.pos)
-		if !newPos.InBounds(puzzle.dim) {
+		if !newPos.InBounds(puzzle.n) {
 			continue
 		}
 
-		nextPuzzle := NewPuzzle(puzzle, slices.Clone(puzzle.tiles), puzzle.dim)
+		np := NewPuzzle(puzzle, slices.Clone(puzzle.tiles), puzzle.n)
 
-		temp := nextPuzzle.tiles[newPos.ToIndex(puzzle.dim)]
-		nextPuzzle.tiles[newPos.ToIndex(puzzle.dim)] = nextPuzzle.tiles[zeroPos.ToIndex(puzzle.dim)]
-		nextPuzzle.tiles[zeroPos.ToIndex(puzzle.dim)] = temp
+		newIdx := newPos.ToIndex(puzzle.n)
+		zeroIdx := zeroPos.ToIndex(puzzle.n)
+		temp := np.tiles[newIdx]
+		np.tiles[newIdx] = np.tiles[zeroIdx]
+		np.tiles[zeroIdx] = temp
 
-		nextPuzzle.g = puzzle.g + 1
-		nextPuzzle.f = nextPuzzle.g + nextPuzzle.Heuristic()
-		nextPuzzle.action = direction.action
+		np.g = puzzle.g + 1
+		np.f = np.g + np.Heuristic()
+		np.action = direction.action
 
-		onNeighbor(&nextPuzzle)
+		onNeighbor(&np)
 	}
 }
 
@@ -288,8 +280,8 @@ func ReadPuzzles(path string) []Puzzle {
 			if len(current) == 0 {
 				continue
 			}
-			dim := IntSqrt(len(current))
-			puzzles = append(puzzles, NewPuzzle(nil, current, dim))
+			n := IntSqrt(len(current))
+			puzzles = append(puzzles, NewPuzzle(nil, current, n))
 			current = make([]Tile, 0)
 		}
 	}

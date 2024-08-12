@@ -7,8 +7,7 @@ import sys
 import time
 from enum import Enum
 from math import sqrt, floor
-from typing import Self
-from typing import Callable
+from typing import Optional
 
 class Action(Enum):
     none = 1
@@ -34,16 +33,16 @@ class Action(Enum):
 Position = tuple[int, int]
 
 
-def index_of_pos(pos: Position, dim: int) -> int:
-    return pos[0] * dim + pos[1]
+def index_of_pos(pos: Position, n: int) -> int:
+    return pos[0] * n + pos[1]
 
 
-def pos_of_index(i: int, dim: int) -> Position:
-    return i // dim, i % dim
+def pos_of_index(i: int, n: int) -> Position:
+    return i // n, i % n
 
 
-def in_bounds(pos: Position, dim: int) -> bool:
-    return 0 <= pos[0] < dim and 0 <= pos[1] < dim
+def in_bounds(pos: Position, n: int) -> bool:
+    return 0 <= pos[0] < n and 0 <= pos[1] < n
 
 
 def add_positions(pos1: Position, pos2: Position) -> Position:
@@ -55,13 +54,13 @@ directions: list[Direction] = [((1, 0), Action.down), ((-1, 0), Action.up), ((0,
 
 
 class Puzzle:
-    def __init__(self, tiles, dim):
+    def __init__(self, tiles, n):
         self.g = 0
         self.f = 0
         self.prev = None
         self.tiles = tiles
         self.action = Action.none
-        self.dim = dim
+        self.n = n
 
     def equals(self, other: list[int]) -> bool:
         for i in range(0, len(self.tiles)):
@@ -74,15 +73,15 @@ class Puzzle:
         for i in range(0, len(self.tiles)):
             tile = self.tiles[i]
             if tile != 0:
-                row1, col1 = pos_of_index(i, self.dim)
-                row2, col2 = pos_of_index(self.tiles[i], self.dim)
+                row1, col1 = pos_of_index(i, self.n)
+                row2, col2 = pos_of_index(self.tiles[i], self.n)
                 h += abs(row2 - row1) + abs(col2 - col1)
         return h
 
     def find_zero(self) -> Position:
         for i in range(0, len(self.tiles)):
             if self.tiles[i] == 0:
-                return pos_of_index(i, self.dim)
+                return pos_of_index(i, self.n)
         raise Exception("Puzzles should contain a 0 tile")
 
     def to_string(self):
@@ -97,7 +96,7 @@ class Puzzle:
                 print("  ", end="")
             else:
                 print(self.tiles[i], end=" ")
-            if (i + 1) % self.dim == 0:
+            if (i + 1) % self.n == 0:
                 print("\n", end="")
 
     def __lt__(self, other):
@@ -111,7 +110,7 @@ def create_goal(size: int):
     return tiles
 
 
-def reconstruct_path(curr: Puzzle):
+def reconstruct_path(curr: Optional[Puzzle]):
     path = []
     while curr is not None:
         path.append(curr)
@@ -142,16 +141,16 @@ def find_path(initial: Puzzle):
         visited[curr_puzzle.to_string()] = True
 
         zero_pos = curr_puzzle.find_zero()
-        zero_index = index_of_pos(zero_pos, curr_puzzle.dim)
+        zero_index = index_of_pos(zero_pos, curr_puzzle.n)
 
         for direction in directions:
             next_pos = add_positions(zero_pos, direction[0])
-            next_index = index_of_pos(next_pos, curr_puzzle.dim)
+            next_index = index_of_pos(next_pos, curr_puzzle.n)
 
-            if not in_bounds(next_pos, curr_puzzle.dim):
+            if not in_bounds(next_pos, curr_puzzle.n):
                 continue
 
-            next_puzzle = Puzzle(copy.deepcopy(curr_puzzle.tiles), curr_puzzle.dim)
+            next_puzzle = Puzzle(copy.deepcopy(curr_puzzle.tiles), curr_puzzle.n)
 
             temp = next_puzzle.tiles[zero_index]
             next_puzzle.tiles[zero_index] = next_puzzle.tiles[next_index]
@@ -185,8 +184,8 @@ def read_puzzles(s: str) -> list[Puzzle]:
                     curr_tiles.append(int(token))
         else:
             if len(curr_tiles) > 0:
-                dim = floor(sqrt(len(curr_tiles)))
-                puzzles.append(Puzzle(curr_tiles, dim))
+                n = floor(sqrt(len(curr_tiles)))
+                puzzles.append(Puzzle(curr_tiles, n))
                 curr_tiles = []
     return puzzles
 

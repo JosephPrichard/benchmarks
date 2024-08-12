@@ -105,7 +105,7 @@ Runs parse_inputs(FILE* input_file) {
 
                 Tile tile = (Tile) strtol(tok, NULL, 10);
                 if (errno) {
-                    printf("Failed to parse a token to tile_t %s with errno %d\n", tok, errno);
+                    printf("Failed to parse a token to tile %s with errno %d\n", tok, errno);
                     exit(1);
                 }
             
