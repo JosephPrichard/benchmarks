@@ -4,6 +4,7 @@ const debug = std.debug;
 const time = std.time;
 const math = std.math;
 const heap = std.heap;
+const Thread = std.Thread;
 
 pub const Action = enum { none, up, down, left, right };
 
@@ -180,6 +181,7 @@ pub const Solution = struct {
     nodes: u32,
     path: union(enum) { eight: []Puzzle(9), fifteen: []Puzzle(16) },
 
+    // takes ownership of the array the path slice points to
     fn init(comptime n: u32, path: []Puzzle(n), time_ms: f64, nodes: u32) Solution {
         return switch (n) {
             9 => Solution{ .path = .{ .eight = path }, .time = time_ms, .nodes = nodes },
@@ -190,31 +192,38 @@ pub const Solution = struct {
 
     pub fn print(self: Solution) void {
         switch (self.path) {
-            .eight => |p| {
-                for (p) |puz| puz.print();
+            .eight => |path| {
+                for (path) |puzzle| puzzle.print();
             },
-            .fifteen => |p| {
-                for (p) |puz| puz.print();
+            .fifteen => |path| {
+                for (path) |puzzle| puzzle.print();
             },
         }
     }
 
     pub fn len(self: Solution) usize {
         return switch (self.path) {
-            .eight => |p| p.len,
-            .fifteen => |p| p.len,
+            .eight => |path| path.len,
+            .fifteen => |path| path.len,
+        };
+    }
+
+    pub fn free(self: Solution, alloc: mem.Allocator) void {
+        return switch (self.path) {
+            .eight => |slice| alloc.free(slice),
+            .fifteen => |slice| alloc.free(slice),
         };
     }
 };
 
-fn reconstructPath(out_alloc: mem.Allocator, comptime n: u32, puzzle: ?*const Puzzle(n)) []Puzzle(n) {
-    var path = std.ArrayList(Puzzle(n)).init(out_alloc);
+fn reconstructPath(alloc: mem.Allocator, comptime n: u32, puzzle: ?*const Puzzle(n)) []Puzzle(n) {
+    var path = std.ArrayList(Puzzle(n)).init(alloc);
     errdefer path.deinit();
 
-    var curr: ?*const Puzzle(n) = @constCast(puzzle);
+    var curr: ?*const Puzzle(n) = puzzle;
     while (curr != null) {
         path.append(curr.?.*) catch unreachable;
-        curr = @constCast(curr.?.parent);
+        curr = curr.?.parent;
     }
 
     // reverse the path by swapping all element and its opposite up until the midpoint
@@ -227,21 +236,20 @@ fn reconstructPath(out_alloc: mem.Allocator, comptime n: u32, puzzle: ?*const Pu
         i += 1;
     }
 
-    return path.items;
+    return path.toOwnedSlice() catch unreachable;
 }
 
-fn findPath(out_alloc: mem.Allocator, comptime n: u32, initial: Puzzle(n)) Solution {
+fn findPath(alloc: mem.Allocator, comptime n: u32, initial: Puzzle(n)) Solution {
     const start_time = time.nanoTimestamp();
 
-    // we use an arena allocator to allocate within the search function - anything here has a lifetime til end of function
+    // we use an arena allocator to allocate puzzle within the search function - anything here has a lifetime til end of function
     var arena = heap.ArenaAllocator.init(heap.page_allocator);
     defer arena.deinit();
     var allocator = arena.allocator();
 
     var visited = std.AutoHashMap(u64, void).init(allocator);
-    defer visited.deinit();
-
     var frontier = std.PriorityQueue(*const Puzzle(n), void, Puzzle(n).compare).init(allocator, {});
+    defer visited.deinit();
     defer frontier.deinit();
 
     frontier.add(&initial) catch unreachable;
@@ -260,7 +268,7 @@ fn findPath(out_alloc: mem.Allocator, comptime n: u32, initial: Puzzle(n)) Solut
         visited.put(curr_hash, {}) catch unreachable;
 
         if (curr_hash == goal_hash) {
-            path = reconstructPath(out_alloc, n, puzzle);
+            path = reconstructPath(alloc, n, puzzle);
             break;
         }
 
@@ -294,8 +302,8 @@ fn findPath(out_alloc: mem.Allocator, comptime n: u32, initial: Puzzle(n)) Solut
 
             // we need to allocate on the arena and copy the puzzle from stack
             const np = allocator.create(Puzzle(n)) catch unreachable;
-            np.* = np_temp;
             frontier.add(np) catch unreachable;
+            np.* = np_temp;
         }
     }
 
@@ -306,9 +314,20 @@ fn findPath(out_alloc: mem.Allocator, comptime n: u32, initial: Puzzle(n)) Solut
     return Solution.init(n, path, elapsed_time, nodes);
 }
 
-pub fn readPuzzles(out_alloc: mem.Allocator, file_name: []const u8) ![]AnyPuzzle {
-    var puzzles = std.ArrayList(AnyPuzzle).init(out_alloc);
-    errdefer puzzles.deinit();
+pub const Task = struct {
+    puzzle_in: AnyPuzzle,
+    solution_out: Solution,
+
+    // creates a new task with the input but without the output (will be set once complete)
+    fn init(puzzle_in: AnyPuzzle) Task {
+        return Task{ .puzzle_in = puzzle_in, .solution_out = undefined };
+    }
+};
+
+// parses a puzzle files into an array of tasks that can be completed by the complete task functions
+pub fn readTasks(alloc: mem.Allocator, file_name: []const u8) ![]Task {
+    var tasks = std.ArrayList(Task).init(alloc);
+    defer tasks.deinit();
 
     const file = try std.fs.cwd().openFile(file_name, .{ .mode = std.fs.File.OpenMode.read_only });
     defer file.close();
@@ -322,11 +341,10 @@ pub fn readPuzzles(out_alloc: mem.Allocator, file_name: []const u8) ![]AnyPuzzle
     var buffer: [4096]u8 = undefined;
     var i: u32 = 0;
     var bytes_read: usize = 0;
-    var nl: bool = false;
+    var prev_nl: bool = false;
 
     while (true) {
         if (i >= bytes_read) {
-            // when we exceed the maximum length of a buffer, we need to read the next buffer
             bytes_read = try file.readAll(&buffer);
             i = 0;
             if (bytes_read == 0) {
@@ -338,34 +356,28 @@ pub fn readPuzzles(out_alloc: mem.Allocator, file_name: []const u8) ![]AnyPuzzle
         if (c == ' ' or c == '\n') {
             // only write the tile if it actually contains any changes
             if (tile_idx != 0) {
-                nl = false;
+                prev_nl = false;
                 // we have finished reading a tile - lets do something with it
-                if (tiles_idx >= 16) {
-                    // but we can't have any tiles arrays that are too long!
-                    return error.TilesLength;
-                }
+                if (tiles_idx >= 16) return error.TilesLength;
                 curr_tiles[tiles_idx] = tile;
                 tiles_idx += 1;
-
-                // reset the tile to write once again to the start
                 tile = 0;
                 tile_idx = 0;
             }
-
             if (c == '\n') {
-                if (nl) {
-                    // we have finished reading the tiles - lets copy them into a puzzl
+                if (prev_nl) {
+                    // we have finished reading the tiles, lets copy them into a puzzle
                     const puzzle = AnyPuzzle.init(tiles_idx, &curr_tiles);
-                    try puzzles.append(puzzle);
+                    try tasks.append(Task.init(puzzle));
                     tiles_idx = 0;
-                    nl = false;
+                    prev_nl = false;
                 } else {
-                    nl = true;
+                    prev_nl = true;
                 }
             }
-        } else if (std.ascii.isWhitespace(c)) {} // skip the /r on windows or any other whitespace like tabs
+        } else if (std.ascii.isWhitespace(c)) {} // skip any other whitespace - nothing to do!
         else {
-            nl = false;
+            prev_nl = false;
             debug.assert(c >= '0');
             const digit: u8 = @truncate(math.pow(u32, 10, tile_idx));
             tile += digit * (c - '0');
@@ -375,17 +387,78 @@ pub fn readPuzzles(out_alloc: mem.Allocator, file_name: []const u8) ![]AnyPuzzle
         i += 1;
     }
 
-    return puzzles.items;
+    return try tasks.toOwnedSlice();
 }
 
-pub fn findPaths(out_alloc: mem.Allocator, puzzles: []AnyPuzzle) []Solution {
-    var solutions = std.ArrayList(Solution).init(out_alloc);
-    for (puzzles) |any_puzzle| {
-        const solution = switch (any_puzzle) {
-            .eight => |puzzle| findPath(out_alloc, 9, puzzle),
-            .fifteen => |puzzle| findPath(out_alloc, 16, puzzle),
+pub fn completeTasks(alloc: mem.Allocator, tasks: []Task) void {
+    for (0.., tasks) |i, task| {
+        const solution = switch (task.puzzle_in) {
+            .eight => |puzzle| findPath(alloc, 9, puzzle),
+            .fifteen => |puzzle| findPath(alloc, 16, puzzle),
         };
-        solutions.append(solution) catch unreachable;
+        tasks[i].solution_out = solution;
     }
-    return solutions.items;
+}
+
+const TaskQueue = struct {
+    tasks: []Task,
+    i: u32 = 0,
+    mu: Thread.Mutex = Thread.Mutex{},
+
+    const Self = @This();
+
+    fn init(tasks: []Task) Self {
+        return Self{ .tasks = tasks };
+    }
+
+    fn take(self: *Self) ?*Task {
+        self.mu.lock();
+        defer self.mu.unlock();
+
+        if (self.i >= self.tasks.len) {
+            return null;
+        }
+        const ret = &self.tasks[self.i];
+        self.i += 1;
+        return ret;
+    }
+};
+
+pub fn completeTasksParallel(alloc: mem.Allocator, tasks: []Task) !void {
+    const Context = struct {
+        alloc: mem.Allocator,
+        queue: *TaskQueue,
+
+        const Self = @This();
+
+        fn worker(self: Self) void {
+            while (true) {
+                const opt_task = self.queue.take();
+                if (opt_task) |task| {
+                    const solution = switch (task.puzzle_in) {
+                        .eight => |puzzle| findPath(self.alloc, 9, puzzle),
+                        .fifteen => |puzzle| findPath(self.alloc, 16, puzzle),
+                    };
+                    task.solution_out = solution;
+                } else {
+                    return;
+                }
+            }
+        }
+    };
+
+    const cores = try Thread.getCpuCount();
+
+    var queue = TaskQueue.init(tasks);
+
+    var threads = alloc.alloc(Thread, cores) catch unreachable;
+    defer alloc.free(threads);
+
+    const ctx = Context{ .alloc = alloc, .queue = &queue };
+    for (0..threads.len) |i| {
+        const thread = try Thread.spawn(.{}, Context.worker, .{ctx});
+        threads[i] = thread;
+    }
+
+    for (threads) |thread| thread.join();
 }
