@@ -60,6 +60,7 @@ The following results are for the `8puzzles-large.txt` file, containing 1000 3x3
 | Rust Arena | 87.251     | 86.721      | 705454  | no       |
 | Rust Rc    | 17.259     | 259.907     | 705454  | yes      |
 | Rust Rc    | 131.861    | 131.344     | 705454  | no       |
+| Zig        | 98.7828    | 98.7119     | 603584  | no       |
 | C#         | 85.3341    | 1318.8105   | 751669  | yes      |
 | C#         | 242.83     | 242.7177    | 751669  | no       |
 | Go         | 51.676     | 795.48      | 737402  | yes      |

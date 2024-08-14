@@ -22,38 +22,38 @@ if len(sys.argv) != 2:
     sys.exit(1)
 
 commands = [
-    (".\\rust\\target\\release\\puzzle.exe", "Rust Arena", "arena par", "yes"),
-    (".\\rust\\target\\release\\puzzle.exe", "Rust Arena", "arena seq", "no"),
-    (".\\rust\\target\\release\\puzzle.exe", "Rust Rc", "rc par", "yes"),
-    (".\\rust\\target\\release\\puzzle.exe", "Rust Rc", "rc seq", "no"),
-    # (".\\zig\\main.exe", "Zig", "seq", "no"),
-    (".\\c\\puzzle.exe", "C", "par", "yes"),
-    (".\\c\\puzzle.exe", "C", "seq", "no"),
-    (".\\go\\puzzle.exe", "Go", "par", "yes"),
-    (".\\go\\puzzle.exe", "Go", "seq", "no"),
-    ("java -cp .\\java\\out\\puzzle.jar src.Main", "Java", "par", "yes"),
-    ("java -cp .\\java\\out\\puzzle.jar src.Main", "Java", "seq", "no"),
-    (".\\csharp\\npuzzle\\publish\\npuzzle.exe", "C#", "par", "yes"),
-    (".\\csharp\\npuzzle\\publish\\npuzzle.exe", "C#", "seq", "no"),
-    ("node .\\nodejs\\puzzle.js", "Nodejs", "", "no"),
-    # (".\\ocaml\\_build\\install\\default\\bin\\puzzleml.exe", "Ocaml", "", "no"),
-    ("py .\\python\\puzzle.py", "Python", "par", "yes"),
-    ("py .\\python\\puzzle.py", "Python", "", "no")
+    (".\\rust\\target\\release\\puzzle.exe", "Rust", "arena par"),
+    (".\\rust\\target\\release\\puzzle.exe", "Rust", "arena seq"),
+    (".\\rust\\target\\release\\puzzle.exe", "Rust", "rc par"),
+    (".\\rust\\target\\release\\puzzle.exe", "Rust", "rc seq"),
+    (".\\zig\\main.exe", "Zig", ""),
+    (".\\c\\puzzle.exe", "C", "par"),
+    (".\\c\\puzzle.exe", "C", "seq"),
+    (".\\go\\puzzle.exe", "Go", "par"),
+    (".\\go\\puzzle.exe", "Go", "seq"),
+    ("java -cp .\\java\\out\\puzzle.jar src.Main", "Java", "par"),
+    ("java -cp .\\java\\out\\puzzle.jar src.Main", "Java", "seq"),
+    (".\\csharp\\npuzzle\\publish\\npuzzle.exe", "C#", "par"),
+    (".\\csharp\\npuzzle\\publish\\npuzzle.exe", "C#", "seq"),
+    ("node .\\nodejs\\puzzle.js", "Nodejs", ""),
+    (".\\ocaml\\_build\\install\\default\\bin\\puzzleml.exe", "Ocaml", ""),
+    ("py .\\python\\puzzle.py", "Python", "par"),
+    ("py .\\python\\puzzle.py", "Python", "seq")
 ]
 
 input_file = sys.argv[1]
 rows = []
 
-for command, lang, mode, parallel in commands:
+for command, lang, mode in commands:
     full_command = f'{command} {input_file} {mode}'.strip()
     result = run_command(full_command)
     result = result.decode("utf-8")
-    row = get_row(result, lang, parallel)
+    row = get_row(result, lang, mode)
     rows.append((row, result))
 
 for (_, result) in rows:
     print(result)
 
-print("Lang, Ete (ms), Total (ms), Nodes, Parallel")
+print("Lang, Ete (ms), Total (ms), Nodes, Mode")
 for (row, _) in rows:
     print(row)
