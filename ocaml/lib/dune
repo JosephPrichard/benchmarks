@@ -1,4 +1,0 @@
-(library
- (name puzzle_solver)
- (modules puzzle solver)
- (libraries str psq))

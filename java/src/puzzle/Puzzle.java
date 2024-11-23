@@ -1,9 +1,4 @@
-/*
- * An object of this class represents each puzzle state (node) for the puzzle problem
- * A puzzle state encapsulates the internal puzzle, the previous state, the score rankings, etc.
- * 4/15/20
- */
-package src;
+package puzzle;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -13,10 +8,6 @@ import java.util.List;
 import java.util.Scanner;
 import java.util.function.Consumer;
 
-/**
- *
- * @author Joseph Prichard
- */
 public class Puzzle
 {
     private static final int[][] DIRECTIONS = {{0, -1}, {0, 1}, {1, 0}, {-1, 0}};

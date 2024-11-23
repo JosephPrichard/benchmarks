@@ -1,17 +1,9 @@
-/*
- * Generate random puzzle inputs for any solver implementation to use
- * 2/14/24
- */
-package src;
+package puzzle;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 
-/**
- *
- * @author Joseph Prichard
- */
 public class PuzzleGenerator {
 
     public static void main(String[] args) throws IOException {

@@ -59,3 +59,5 @@ output
 */node_modules
 
 zig/zig-cache
+
+haskell/dist-newstyle

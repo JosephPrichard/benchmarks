@@ -1,15 +1,7 @@
-/*
- * Implements AStar algorithm to solve the puzzle
- * 4/16/20
- */
-package src;
+package puzzle;
 
 import java.util.*;
 
-/**
- *
- * @author Joseph Prichard
- */
 public class PuzzleSolver
 {
     private final Puzzle goalState;

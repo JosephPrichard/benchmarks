@@ -1,5 +1,8 @@
 package src;
 
+import puzzle.Puzzle;
+import puzzle.PuzzleSolver;
+
 import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -13,6 +16,9 @@ import java.util.concurrent.Executors;
  */
 public class Main
 {
+    record Solution(double time, int nodes, List<Puzzle> path) {
+    }
+
     private static List<Solution> runSolvers(List<Puzzle> states) {
         List<Solution> solutions = new ArrayList<>();
         for (var initialState : states) {
