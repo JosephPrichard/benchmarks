@@ -1,6 +1,6 @@
 module Puzzle = struct
   type move =
-    | None
+    | Start
     | Left
     | Right
     | Up
@@ -28,7 +28,7 @@ module Puzzle = struct
   let size_of_tiles tiles = tiles |> Array.length |> float_of_int |> sqrt |> int_of_float
 
   let string_of_move = function
-    | None -> "None"
+    | Start -> "None"
     | Left -> "Left"
     | Right -> "Right"
     | Up -> "Up"
@@ -44,7 +44,7 @@ module Puzzle = struct
 
   let string_of_tile tile = if tile = 0 then " " else string_of_int tile
 
-  let in_bounds ((row, col) : position) size =
+  let in_bounds ~size ((row, col) : position) =
     row >= 0 && row < size && col >= 0 && col < size
   ;;
 
@@ -53,25 +53,20 @@ module Puzzle = struct
   ;;
 
   let ( .%() ) board pos =
-    if in_bounds pos board.size
+    if in_bounds ~size:board.size pos
     then board.tiles.(index_of_pos ~size:board.size pos)
     else
-      raise
-        (Invalid_argument
-           (Printf.sprintf
-              "Cannot get index %s - is an invalid position"
-              (str_of_pos pos)))
+      failwith
+        (Printf.sprintf "Cannot get index %s - is an invalid position" (str_of_pos pos))
   ;;
 
   let find_empty board =
-    let i =
-      board.tiles
-      |> Array.mapi (fun i tile -> i, tile)
-      |> Array.find_opt (fun (_, tile) -> tile == 0)
-      |> Option.get
-      |> fst
-    in
-    pos_of_index ~size:board.size i
+    board.tiles
+    |> Array.mapi (fun i tile -> i, tile)
+    |> Array.find_opt (fun (_, tile) -> tile == 0)
+    |> Option.get
+    |> fst
+    |> pos_of_index ~size:board.size
   ;;
 
   let swap board (pos1 : position) (pos2 : position) =
@@ -88,7 +83,7 @@ module Puzzle = struct
   let manhattan_dist (row1, col1) (row2, col2) = abs (row2 - row1) + abs (col2 - col1)
 
   let heuristic board =
-    let foldh (sum, i) tile =
+    let fold_heuristic (sum, i) tile =
       if tile == 0
       then sum, i + 1
       else (
@@ -99,7 +94,7 @@ module Puzzle = struct
         in
         sum + dst, i + 1)
     in
-    fst (Array.fold_left foldh (0, 0) board.tiles)
+    fst (Array.fold_left fold_heuristic (0, 0) board.tiles)
   ;;
 
   let goal len =
@@ -131,7 +126,7 @@ module Puzzle = struct
     let empty_pos = find_empty puzzle.board in
     directions
     |> List.map (fun (direction, move) -> empty_pos ++ direction, move)
-    |> List.filter (fun (pos, _) -> in_bounds pos puzzle.board.size)
+    |> List.filter (fun (pos, _) -> in_bounds ~size:puzzle.board.size pos)
     |> List.map (move_puzzle puzzle empty_pos)
   ;;
 
@@ -227,7 +222,7 @@ let solve tiles =
     ; board = { tiles; size = size_of_tiles tiles }
     ; gscore = 0
     ; fscore = 0
-    ; move = None
+    ; move = Start
     }
   in
   let frontier =
