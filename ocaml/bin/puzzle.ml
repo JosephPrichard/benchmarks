@@ -97,10 +97,7 @@ module Puzzle = struct
     fst (Array.fold_left fold_heuristic (0, 0) board.tiles)
   ;;
 
-  let goal len =
-    let rec aux i acc = if i >= 0 then aux (i - 1) (i :: acc) else acc in
-    Array.of_list (aux (len - 1) [])
-  ;;
+  let goal len = Array.init len (fun x -> x)
 
   let hash_tiles tiles : int64 =
     fst
@@ -125,9 +122,11 @@ module Puzzle = struct
   let adjacent puzzle =
     let empty_pos = find_empty puzzle.board in
     directions
-    |> List.map (fun (direction, move) -> empty_pos ++ direction, move)
-    |> List.filter (fun (pos, _) -> in_bounds ~size:puzzle.board.size pos)
-    |> List.map (move_puzzle puzzle empty_pos)
+    |> List.to_seq
+    |> Seq.map (fun (direction, move) -> empty_pos ++ direction, move)
+    |> Seq.filter (fun (pos, _) -> in_bounds ~size:puzzle.board.size pos)
+    |> Seq.map (move_puzzle puzzle empty_pos)
+    |> List.of_seq
   ;;
 
   let print_action puzzle = Printf.printf "%s\n" (string_of_move puzzle.move)
@@ -194,6 +193,7 @@ let rec add_neighbors puzzles frontier visited =
   | puzzle :: puzzles ->
     let key = Puzzle.hash_tiles puzzle.board.tiles in
     (match VisitedSet.find_opt key visited with
+    (* (match Hashtbl.find_opt visited key with *)
      | Some _ -> add_neighbors puzzles frontier visited
      | None -> add_neighbors puzzles (OrderedPuzzles.add key puzzle frontier) visited)
   | [] -> frontier
@@ -203,6 +203,7 @@ let rec search frontier visited goal_tiles nodes =
   match OrderedPuzzles.min frontier with
   | Some (key, puzzle) ->
     let visited = VisitedSet.add (Puzzle.hash_tiles puzzle.board.tiles) () visited in
+    (* let _ = Hashtbl.add visited (Puzzle.hash_tiles puzzle.board.tiles) () in *)
     if puzzle.board.tiles = goal_tiles
     then reconstruct_path puzzle [], nodes
     else (
@@ -233,6 +234,7 @@ let solve tiles =
   in
   let goal = Puzzle.goal (Array.length initial.board.tiles) in
   search frontier VisitedSet.empty goal 0
+  (* search frontier (Hashtbl.create 50) goal 0 *)
 ;;
 
 let run_solutions tiles =
