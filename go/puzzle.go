@@ -13,12 +13,29 @@ import (
 	"time"
 )
 
+type Action int
+
 const (
-	Up    = 1
-	Down  = 2
-	Left  = 3
-	Right = 4
+	Up    Action = iota
+	Down
+	Left
+	Right
 )
+
+func (action Action) String() string {
+	switch action {
+	case Down:
+		return "Down\n"
+	case Up:
+		return "Up\n"
+	case Left:
+		return "Left\n"
+	case Right:
+		return "Right\n"
+	default:
+		return "Start\n"
+	}
+}
 
 type Position struct {
 	row int
@@ -49,17 +66,13 @@ type Puzzle struct {
 	tiles  []Tile
 	g      int
 	f      int
-	action int
+	action Action
 	n    int
-}
-
-func NewPuzzle(prev *Puzzle, tiles []Tile, n int) Puzzle {
-	return Puzzle{prev: prev, tiles: tiles, n: n}
 }
 
 func NewGoal(len int) []Tile {
 	tiles := make([]Tile, len)
-	for i := 0; i < len; i++ {
+	for i := range len {
 		tiles[i] = byte(i)
 	}
 	return tiles
@@ -69,28 +82,13 @@ func IntSqrt(x int) int {
 	return int(math.Sqrt(float64(x)))
 }
 
-func (puzzle *Puzzle) PrintAction() string {
-	switch puzzle.action {
-	case Down:
-		return "Down\n"
-	case Up:
-		return "Up\n"
-	case Left:
-		return "Left\n"
-	case Right:
-		return "Right\n"
-	default:
-		return "Start\n"
-	}
-}
-
 func (puzzle *Puzzle) PrintPuzzle() string {
 	var sb strings.Builder
 	for i, tile := range puzzle.tiles {
 		if tile == 0 {
 			sb.WriteString("  ")
 		} else {
-			sb.WriteString(fmt.Sprintf("%d ", tile))
+			fmt.Fprintf(&sb, "%d ", tile)
 		}
 		if (i+1)%puzzle.n == 0 {
 			sb.WriteString("\n")
@@ -109,11 +107,12 @@ func abs(i int) int {
 func (puzzle *Puzzle) Heuristic() int {
 	h := 0
 	for i, tile := range puzzle.tiles {
+		if tile == 0 {
+			continue
+		}
 		pos1 := IndexToPos(i, puzzle.n)
 		pos2 := IndexToPos(int(tile), puzzle.n)
-		if tile != 0 {
-			h += abs(pos2.row-pos1.row) + abs(pos2.col-pos1.col)
-		}
+		h += abs(pos2.row-pos1.row) + abs(pos2.col-pos1.col)
 	}
 	return h
 }
@@ -124,7 +123,7 @@ func (puzzle *Puzzle) FindZero() Position {
 			return IndexToPos(i, puzzle.n)
 		}
 	}
-	panic("Puzzle contains no zero - this should never happen")
+	panic("puzzle contains no zero - this should never happen")
 }
 
 func HashTiles(tiles []Tile) uint64 {
@@ -142,7 +141,7 @@ func (puzzle *Puzzle) Hash() uint64 {
 
 type Direction struct {
 	pos    Position
-	action int
+	action Action
 }
 
 var directions = []Direction{
@@ -155,24 +154,29 @@ var directions = []Direction{
 func (puzzle *Puzzle) OnNeighbors(onNeighbor func(puzzle *Puzzle)) {
 	zeroPos := puzzle.FindZero()
 	for _, direction := range directions {
-		newPos := zeroPos.Add(direction.pos)
-		if !newPos.InBounds(puzzle.n) {
+		nextPos := zeroPos.Add(direction.pos)
+		if !nextPos.InBounds(puzzle.n) {
 			continue
 		}
 
-		np := NewPuzzle(puzzle, slices.Clone(puzzle.tiles), puzzle.n)
+		nextPuzzle := Puzzle{
+			prev: puzzle, 
+			tiles: slices.Clone(puzzle.tiles),
+			g: puzzle.g + 1,
+			n: puzzle.n,
+			action: direction.action,
+		}
 
-		newIdx := newPos.ToIndex(puzzle.n)
 		zeroIdx := zeroPos.ToIndex(puzzle.n)
-		temp := np.tiles[newIdx]
-		np.tiles[newIdx] = np.tiles[zeroIdx]
-		np.tiles[zeroIdx] = temp
+		nextIdx := nextPos.ToIndex(puzzle.n)
 
-		np.g = puzzle.g + 1
-		np.f = np.g + np.Heuristic()
-		np.action = direction.action
+		temp := nextPuzzle.tiles[nextIdx]
+		nextPuzzle.tiles[nextIdx] = nextPuzzle.tiles[zeroIdx]
+		nextPuzzle.tiles[zeroIdx] = temp
 
-		onNeighbor(&np)
+		nextPuzzle.f = nextPuzzle.g + nextPuzzle.Heuristic()
+
+		onNeighbor(&nextPuzzle)
 	}
 }
 
@@ -281,7 +285,7 @@ func ReadPuzzles(path string) []Puzzle {
 				continue
 			}
 			n := IntSqrt(len(current))
-			puzzles = append(puzzles, NewPuzzle(nil, current, n))
+			puzzles = append(puzzles, Puzzle{prev: nil, tiles: current, n: n})
 			current = make([]Tile, 0)
 		}
 	}
@@ -365,11 +369,12 @@ func main() {
 	start := time.Now()
 
 	var solutions []Solution
-	if flag == "seq" {
+	switch flag {
+	case "seq":
 		solutions = FindPaths(puzzles)
-	} else if flag == "par" {
+	case "par":
 		solutions = FindPathsParallel(puzzles)
-	} else {
+	default:
 		fmt.Printf("Parallelism flag must be par or seq, got %s \n", flag)
 		os.Exit(1)
 	}
@@ -380,7 +385,7 @@ func main() {
 	for i, s := range solutions {
 		fmt.Printf("Solution for puzzle %d\n", i+1)
 		for _, puzzle := range s.path {
-			fmt.Print(puzzle.PrintAction())
+			fmt.Print(puzzle.action.String())
 		}
 
 		fmt.Printf("Solved in %d steps\n\n", len(s.path)-1)
