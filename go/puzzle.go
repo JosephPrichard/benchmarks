@@ -1,10 +1,10 @@
 package main
 
 import (
-	"container/heap"
 	"fmt"
+	pq "github.com/emirpasic/gods/queues/priorityqueue"
+	"github.com/emirpasic/gods/utils"
 	"log"
-	"math"
 	"os"
 	"runtime"
 	"slices"
@@ -175,33 +175,6 @@ func (puzzle *Puzzle) OnNeighbors(onNeighbor func(puzzle Puzzle)) {
 	}
 }
 
-type PuzzleHeap struct {
-	array []*Puzzle
-}
-
-func (h PuzzleHeap) Len() int {
-	return len(h.array)
-}
-
-func (h PuzzleHeap) Less(i, j int) bool {
-	return h.array[i].f < h.array[j].f
-}
-
-func (h PuzzleHeap) Swap(i, j int) {
-	h.array[i], h.array[j] = h.array[j], h.array[i]
-}
-
-func (h *PuzzleHeap) Push(x any) {
-	h.array = append(h.array, x.(*Puzzle))
-}
-
-func (h *PuzzleHeap) Pop() any {
-	lastIdx := len(h.array) - 1
-	last := h.array[lastIdx]
-	h.array = h.array[:lastIdx]
-	return last
-}
-
 func ReconstructPath(puzzle *Puzzle) []Puzzle {
 	path := make([]Puzzle, 0)
 	for puzzle != nil {
@@ -215,16 +188,24 @@ func ReconstructPath(puzzle *Puzzle) []Puzzle {
 func FindPath(initial Puzzle) ([]Puzzle, int) {
 	visited := make(map[uint64]struct{})
 
-	frontier := PuzzleHeap{array: make([]*Puzzle, 0)}
-	frontier.Push(&initial)
-	heap.Init(&frontier)
+	frontier := pq.NewWith(func(a, b interface{}) int {
+		priorityA := a.(*Puzzle).f
+		priorityB := b.(*Puzzle).f
+		return utils.IntComparator(priorityA, priorityB)
+	})
+
+	frontier.Enqueue(&initial)
 
 	goal := NewGoal(len(initial.tiles))
 	goalHash := HashTiles(goal)
 
 	nodes := 0
-	for frontier.Len() > 0 {
-		puzzle := heap.Pop(&frontier).(*Puzzle)
+	for {
+		top, ok := frontier.Dequeue()
+		if !ok {
+			break
+		}
+		puzzle := top.(*Puzzle)
 		nodes += 1
 
 		currHash := puzzle.Hash()
@@ -238,7 +219,7 @@ func FindPath(initial Puzzle) ([]Puzzle, int) {
 			_, isVisited := visited[puzzle.Hash()]
 			if !isVisited {
 				puzzle.f = puzzle.g + puzzle.Heuristic()
-				heap.Push(&frontier, &puzzle)
+				frontier.Enqueue(&puzzle)
 			}
 		})
 	}
@@ -246,24 +227,18 @@ func FindPath(initial Puzzle) ([]Puzzle, int) {
 	return make([]Puzzle, 0), nodes
 }
 
-func intSqrt(x int) int {
-	return int(math.Sqrt(float64(x)))
-}
-
 func ReadPuzzles(path string) ([]Puzzle, error) {
 	contents, err := os.ReadFile(path)
 	if err != nil {
-		fmt.Printf("Failed to read input file %s\n", path)
-		os.Exit(1)
+		return nil, fmt.Errorf("failed to read input file: %v\n", err)
 	}
 
 	var puzzles []Puzzle
 	var current []Tile
 
-	lines := strings.Split(string(contents), "\n")
-	for _, line := range lines {
+	for line := range strings.SplitSeq(string(contents), "\n") {
 		line := strings.TrimRight(line, "\n\r")
-		tokens := strings.Split(strings.TrimRight(line, "\n\r"), " ")
+		tokens := strings.Split(line, " ")
 
 		if len(tokens) > 1 {
 			for _, token := range tokens {
@@ -272,8 +247,7 @@ func ReadPuzzles(path string) ([]Puzzle, error) {
 				}
 				tile, err := strconv.Atoi(token)
 				if err != nil {
-					fmt.Printf("Tile %s must be integers", token)
-					os.Exit(1)
+					return nil, fmt.Errorf("tile %s must be integers", token)
 				}
 				current = append(current, byte(tile))
 			}
@@ -281,8 +255,18 @@ func ReadPuzzles(path string) ([]Puzzle, error) {
 			if len(current) == 0 {
 				continue
 			}
-			n := intSqrt(len(current))
-			puzzles = append(puzzles, Puzzle{prev: nil, tiles: current, dimension: n})
+
+			var dimension int
+			switch len(current) {
+			case 9:
+				dimension = 3
+			case 16:
+				dimension = 4
+			default:
+				return nil, fmt.Errorf("puzzle must have 9 or 16 tiles, got %d", len(current))
+			}
+
+			puzzles = append(puzzles, Puzzle{prev: nil, tiles: current, dimension: dimension})
 			current = make([]Tile, 0)
 		}
 	}
@@ -322,10 +306,7 @@ func FindPathsParallel(puzzles []Puzzle) []Solution {
 	sem := make(chan struct{}, runtime.NumCPU())
 
 	for i, puzzle := range puzzles {
-		wg.Add(1)
-		go func(i int, puzzle Puzzle) {
-			defer wg.Done()
-
+		wg.Go(func() {
 			sem <- struct{}{}
 
 			start := time.Now()
@@ -341,7 +322,7 @@ func FindPathsParallel(puzzles []Puzzle) []Solution {
 			}
 
 			<-sem
-		}(i, puzzle)
+		})
 	}
 
 	wg.Wait()
