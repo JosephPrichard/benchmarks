@@ -3,6 +3,7 @@ package main
 import (
 	"container/heap"
 	"fmt"
+	"log"
 	"math"
 	"os"
 	"runtime"
@@ -16,7 +17,8 @@ import (
 type Action int
 
 const (
-	Up    Action = iota
+	_ Action = iota
+	Up
 	Down
 	Left
 	Right
@@ -42,17 +44,16 @@ type Position struct {
 	col int
 }
 
-func IndexToPos(i int, n int) Position {
-	return Position{row: i / n, col: i % n}
+func IndexToPos(i int, dimension int) Position {
+	return Position{row: i / dimension, col: i % dimension}
 }
 
-func (pos Position) ToIndex(n int) int {
-	return pos.row*n + pos.col
+func (pos Position) ToIndex(dimension int) int {
+	return pos.row*dimension + pos.col
 }
 
-func (pos Position) InBounds(n int) bool {
-	return pos.row >= 0 && pos.row < n &&
-		pos.col >= 0 && pos.col < n
+func (pos Position) InBounds(dimension int) bool {
+	return pos.row >= 0 && pos.row < dimension && pos.col >= 0 && pos.col < dimension
 }
 
 func (pos Position) Add(rhs Position) Position {
@@ -62,12 +63,12 @@ func (pos Position) Add(rhs Position) Position {
 type Tile = uint8
 
 type Puzzle struct {
-	prev   *Puzzle
-	tiles  []Tile
-	g      int
-	f      int
-	action Action
-	n    int
+	prev      *Puzzle
+	tiles     []Tile
+	g         int
+	f         int
+	action    Action
+	dimension int
 }
 
 func NewGoal(len int) []Tile {
@@ -78,10 +79,6 @@ func NewGoal(len int) []Tile {
 	return tiles
 }
 
-func IntSqrt(x int) int {
-	return int(math.Sqrt(float64(x)))
-}
-
 func (puzzle *Puzzle) PrintPuzzle() string {
 	var sb strings.Builder
 	for i, tile := range puzzle.tiles {
@@ -90,7 +87,7 @@ func (puzzle *Puzzle) PrintPuzzle() string {
 		} else {
 			fmt.Fprintf(&sb, "%d ", tile)
 		}
-		if (i+1)%puzzle.n == 0 {
+		if (i+1)%puzzle.dimension == 0 {
 			sb.WriteString("\n")
 		}
 	}
@@ -110,8 +107,8 @@ func (puzzle *Puzzle) Heuristic() int {
 		if tile == 0 {
 			continue
 		}
-		pos1 := IndexToPos(i, puzzle.n)
-		pos2 := IndexToPos(int(tile), puzzle.n)
+		pos1 := IndexToPos(i, puzzle.dimension)
+		pos2 := IndexToPos(int(tile), puzzle.dimension)
 		h += abs(pos2.row-pos1.row) + abs(pos2.col-pos1.col)
 	}
 	return h
@@ -120,17 +117,17 @@ func (puzzle *Puzzle) Heuristic() int {
 func (puzzle *Puzzle) FindZero() Position {
 	for i, tile := range puzzle.tiles {
 		if tile == 0 {
-			return IndexToPos(i, puzzle.n)
+			return IndexToPos(i, puzzle.dimension)
 		}
 	}
-	panic("puzzle contains no zero - this should never happen")
+	panic("Puzzle contains no zero - this should never happen")
 }
 
 func HashTiles(tiles []Tile) uint64 {
 	var hash uint64
 	for i, tile := range tiles {
 		mask := (uint64(tile)) << (i * 4)
-		hash = (hash | mask)
+		hash = hash | mask
 	}
 	return hash
 }
@@ -151,32 +148,30 @@ var directions = []Direction{
 	{pos: Position{row: -1, col: 0}, action: Up},
 }
 
-func (puzzle *Puzzle) OnNeighbors(onNeighbor func(puzzle *Puzzle)) {
+func (puzzle *Puzzle) OnNeighbors(onNeighbor func(puzzle Puzzle)) {
 	zeroPos := puzzle.FindZero()
 	for _, direction := range directions {
 		nextPos := zeroPos.Add(direction.pos)
-		if !nextPos.InBounds(puzzle.n) {
+		if !nextPos.InBounds(puzzle.dimension) {
 			continue
 		}
 
 		nextPuzzle := Puzzle{
-			prev: puzzle, 
-			tiles: slices.Clone(puzzle.tiles),
-			g: puzzle.g + 1,
-			n: puzzle.n,
-			action: direction.action,
+			prev:      puzzle,
+			tiles:     slices.Clone(puzzle.tiles),
+			g:         puzzle.g + 1,
+			dimension: puzzle.dimension,
+			action:    direction.action,
 		}
 
-		zeroIdx := zeroPos.ToIndex(puzzle.n)
-		nextIdx := nextPos.ToIndex(puzzle.n)
+		zeroIdx := zeroPos.ToIndex(puzzle.dimension)
+		nextIdx := nextPos.ToIndex(puzzle.dimension)
 
 		temp := nextPuzzle.tiles[nextIdx]
 		nextPuzzle.tiles[nextIdx] = nextPuzzle.tiles[zeroIdx]
 		nextPuzzle.tiles[zeroIdx] = temp
 
-		nextPuzzle.f = nextPuzzle.g + nextPuzzle.Heuristic()
-
-		onNeighbor(&nextPuzzle)
+		onNeighbor(nextPuzzle)
 	}
 }
 
@@ -196,17 +191,14 @@ func (h PuzzleHeap) Swap(i, j int) {
 	h.array[i], h.array[j] = h.array[j], h.array[i]
 }
 
-func (h *PuzzleHeap) Push(x interface{}) {
+func (h *PuzzleHeap) Push(x any) {
 	h.array = append(h.array, x.(*Puzzle))
 }
 
-func (h PuzzleHeap) lastIndex() int {
-	return len(h.array) - 1
-}
-
-func (h *PuzzleHeap) Pop() interface{} {
-	last := h.array[h.lastIndex()]
-	h.array = h.array[:h.lastIndex()]
+func (h *PuzzleHeap) Pop() any {
+	lastIdx := len(h.array) - 1
+	last := h.array[lastIdx]
+	h.array = h.array[:lastIdx]
 	return last
 }
 
@@ -221,7 +213,7 @@ func ReconstructPath(puzzle *Puzzle) []Puzzle {
 }
 
 func FindPath(initial Puzzle) ([]Puzzle, int) {
-	visited := make(map[uint64]bool)
+	visited := make(map[uint64]struct{})
 
 	frontier := PuzzleHeap{array: make([]*Puzzle, 0)}
 	frontier.Push(&initial)
@@ -236,16 +228,17 @@ func FindPath(initial Puzzle) ([]Puzzle, int) {
 		nodes += 1
 
 		currHash := puzzle.Hash()
-		visited[currHash] = true
+		visited[currHash] = struct{}{}
 
 		if currHash == goalHash {
 			return ReconstructPath(puzzle), nodes
 		}
 
-		puzzle.OnNeighbors(func(puzzle *Puzzle) {
-			_, exists := visited[puzzle.Hash()]
-			if !exists {
-				heap.Push(&frontier, puzzle)
+		puzzle.OnNeighbors(func(puzzle Puzzle) {
+			_, isVisited := visited[puzzle.Hash()]
+			if !isVisited {
+				puzzle.f = puzzle.g + puzzle.Heuristic()
+				heap.Push(&frontier, &puzzle)
 			}
 		})
 	}
@@ -253,7 +246,11 @@ func FindPath(initial Puzzle) ([]Puzzle, int) {
 	return make([]Puzzle, 0), nodes
 }
 
-func ReadPuzzles(path string) []Puzzle {
+func intSqrt(x int) int {
+	return int(math.Sqrt(float64(x)))
+}
+
+func ReadPuzzles(path string) ([]Puzzle, error) {
 	contents, err := os.ReadFile(path)
 	if err != nil {
 		fmt.Printf("Failed to read input file %s\n", path)
@@ -284,13 +281,13 @@ func ReadPuzzles(path string) []Puzzle {
 			if len(current) == 0 {
 				continue
 			}
-			n := IntSqrt(len(current))
-			puzzles = append(puzzles, Puzzle{prev: nil, tiles: current, n: n})
+			n := intSqrt(len(current))
+			puzzles = append(puzzles, Puzzle{prev: nil, tiles: current, dimension: n})
 			current = make([]Tile, 0)
 		}
 	}
 
-	return puzzles
+	return puzzles, nil
 }
 
 type Solution struct {
@@ -353,8 +350,7 @@ func FindPathsParallel(puzzles []Puzzle) []Solution {
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Println("Needs at least argument for input file")
-		os.Exit(1)
+		log.Fatalf("Needs at least argument for input file")
 	}
 
 	inputFile := os.Args[1]
@@ -364,7 +360,10 @@ func main() {
 		flag = os.Args[2]
 	}
 
-	puzzles := ReadPuzzles(inputFile)
+	puzzles, err := ReadPuzzles(inputFile)
+	if err != nil {
+		log.Fatalf("failed to read puzzles: %s", err)
+	}
 
 	start := time.Now()
 
@@ -375,8 +374,7 @@ func main() {
 	case "par":
 		solutions = FindPathsParallel(puzzles)
 	default:
-		fmt.Printf("Parallelism flag must be par or seq, got %s \n", flag)
-		os.Exit(1)
+		log.Fatalf("Parallelism flag must be par or seq, got %s \n", flag)
 	}
 
 	duration := time.Since(start).Microseconds()
